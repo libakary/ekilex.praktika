@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,10 +26,11 @@ import org.springframework.web.bind.annotation.SessionAttributes;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.UriUtils;
 
+import eki.common.data.SearchStat;
 import eki.wordweb.constant.WebConstant;
+import eki.wordweb.data.AbstractSearchResult;
 import eki.wordweb.data.LinkedWordSearchElement;
 import eki.wordweb.data.SearchFilter;
-import eki.wordweb.data.SearchRequest;
 import eki.wordweb.data.SearchValidation;
 import eki.wordweb.data.UiFilterElement;
 import eki.wordweb.data.WordData;
@@ -44,14 +47,20 @@ public class UnifSearchController extends AbstractSearchController {
 	private UnifSearchService unifSearchService;
 
 	@GetMapping(HOME_URI)
-	public String home(Model model) {
-		populateSearchModel("", new WordsData(), model);
+	public String home(HttpServletRequest request, Model model) {
+
+		populateSearchModel("", false, request, model);
+		model.addAttribute("wordsData", new WordsData());
+
 		return UNIF_HOME_PAGE;
 	}
 
 	@GetMapping(SEARCH_URI + UNIF_URI)
-	public String search(Model model) {
-		populateSearchModel("", new WordsData(), model);
+	public String search(HttpServletRequest request, Model model) {
+
+		populateSearchModel("", false, request, model);
+		model.addAttribute("wordsData", new WordsData());
+
 		return UNIF_SEARCH_PAGE;
 	}
 
@@ -65,16 +74,27 @@ public class UnifSearchController extends AbstractSearchController {
 			RedirectAttributes redirectAttributes) {
 
 		searchWord = StringUtils.trim(searchWord);
+		searchWord = decode(searchWord);
 		if (StringUtils.isBlank(searchWord)) {
-			return "redirect:" + SEARCH_URI + UNIF_URI;
+			return REDIRECT_PREF + SEARCH_URI + UNIF_URI;
+		}
+		Integer selectedWordHomonymNr = null;
+		if (webUtil.isMaskedSearchCrit(searchWord)) {
+			String cleanMaskSearchWord = cleanupMask(searchWord);
+			boolean isValidMaskedSearch = isValidMaskedSearch(searchWord, cleanMaskSearchWord);
+			if (!isValidMaskedSearch) {
+				return REDIRECT_PREF + SEARCH_URI + UNIF_URI;
+			}
+			searchWord = cleanMaskSearchWord;
+		} else {
+			selectedWordHomonymNr = nullSafe(selectedWordHomonymNrStr);
 		}
 		searchWord = textDecorationService.unifyToApostrophe(searchWord);
-		Integer selectedWordHomonymNr = nullSafe(selectedWordHomonymNrStr);
 		String searchUri = webUtil.composeDetailSearchUri(destinLangsStr, datasetCodesStr, searchWord, selectedWordHomonymNr);
 		setSearchFormAttribute(redirectAttributes, Boolean.TRUE);
 		redirectAttributes.addFlashAttribute("linkedLexemeId", linkedLexemeId);
 
-		return "redirect:" + searchUri;
+		return REDIRECT_PREF + searchUri;
 	}
 
 	@GetMapping({
@@ -86,44 +106,67 @@ public class UnifSearchController extends AbstractSearchController {
 			@PathVariable(name = "searchWord") String searchWord,
 			@PathVariable(name = "homonymNr", required = false) String homonymNrStr,
 			HttpServletRequest request,
+			HttpServletResponse response,
 			RedirectAttributes redirectAttributes,
 			Model model) throws Exception {
 
-		boolean isSearchForm = isSearchForm(model);
-		Long linkedLexemeId = getLinkedLexemeId(model);
-		boolean sessionBeanNotPresent = sessionBeanNotPresent(model);
+		boolean isSessionBeanNotPresent = isSessionBeanNotPresent(model);
 		SessionBean sessionBean;
-		if (sessionBeanNotPresent) {
-			sessionBean = createSessionBean(model);
+		if (isSessionBeanNotPresent) {
+			sessionBean = createSessionBean(true, request, model);
 		} else {
 			sessionBean = getSessionBean(model);
 		}
 
+		boolean isSearchForm = isSearchForm(model);
+		Long linkedLexemeId = getLinkedLexemeId(model);
 		searchWord = decode(searchWord);
-		SearchValidation searchValidation = validateAndCorrectSearch(destinLangsStr, datasetCodesStr, searchWord, homonymNrStr);
-		sessionBean.setSearchWord(searchWord);
-		sessionBean.setLinkedLexemeId(linkedLexemeId);
+		boolean isMaskedSearchCrit = webUtil.isMaskedSearchCrit(searchWord);
 
-		if (sessionBeanNotPresent) {
-			//to get rid of the sessionid in the url
-			return "redirect:" + searchValidation.getSearchUri();
-		} else if (!searchValidation.isValid()) {
-			setSearchFormAttribute(redirectAttributes, isSearchForm);
-			return "redirect:" + searchValidation.getSearchUri();
+		SearchValidation searchValidation;
+		if (isMaskedSearchCrit) {
+			searchValidation = validateAndCorrectMaskedSearch(destinLangsStr, datasetCodesStr, searchWord);
+		} else {
+			searchValidation = validateAndCorrectWordSearch(destinLangsStr, datasetCodesStr, searchWord, homonymNrStr);
 		}
 
-		List<String> destinLangs = searchValidation.getDestinLangs();
-		List<String> datasetCodes = searchValidation.getDatasetCodes();
-		sessionBean.setDestinLangs(destinLangs);
-		sessionBean.setDatasetCodes(datasetCodes);
+		sessionBean.setSearchWord(searchValidation.getSearchWord());
+		sessionBean.setDestinLangs(searchValidation.getDestinLangs());
+		sessionBean.setDatasetCodes(searchValidation.getDatasetCodes());
+		sessionBean.setLinkedLexemeId(linkedLexemeId);
 
-		WordsData wordsData = unifSearchService.getWords(searchValidation);
-		populateSearchModel(searchWord, wordsData, model);
+		if (isSessionBeanNotPresent) {
+			//to get rid of the sessionid in the url
+			return REDIRECT_PREF + searchValidation.getSearchUri();
+		} else if (!searchValidation.isValid()) {
+			setSearchFormAttribute(redirectAttributes, isSearchForm);
+			return REDIRECT_PREF + searchValidation.getSearchUri();
+		}
 
-		SearchRequest searchRequest = populateSearchRequest(request, isSearchForm, SEARCH_MODE_DETAIL, searchValidation, wordsData);
-		statDataCollector.postSearchStat(searchRequest);
+		String pageName;
+		AbstractSearchResult searchResult;
 
-		return UNIF_SEARCH_PAGE;
+		setSearchCookies(request, response, searchValidation);
+
+		if (isMaskedSearchCrit) {
+
+			searchResult = unifSearchService.getWordsWithMask(searchValidation);
+			model.addAttribute("wordsMatch", searchResult);
+			pageName = UNIF_WORDS_PAGE;
+
+		} else {
+
+			searchResult = unifSearchService.getWords(searchValidation);
+			model.addAttribute("wordsData", searchResult);
+			pageName = UNIF_SEARCH_PAGE;
+		}
+
+		populateSearchModel(searchWord, true, request, model);
+
+		SearchStat searchStat = statDataUtil.composeSearchStat(request, isSearchForm, SEARCH_MODE_DETAIL, searchValidation, searchResult);
+		statDataCollector.postSearchStat(searchStat);
+
+		return pageName;
 	}
 
 	@GetMapping(value = SEARCH_WORD_FRAG_URI + UNIF_URI + "/{wordFrag}", produces = "application/json;charset=UTF-8")
@@ -144,6 +187,7 @@ public class UnifSearchController extends AbstractSearchController {
 			@ModelAttribute(SESSION_BEAN) SessionBean sessionBean,
 			Model model) {
 
+		String ekilexLimTermSearchUrl = webUtil.getEkilexLimTermSearchUrl();
 		List<String> destinLangs = sessionBean.getDestinLangs();
 		List<String> datasetCodes = sessionBean.getDatasetCodes();
 		Long linkedLexemeId = sessionBean.getLinkedLexemeId();
@@ -155,7 +199,7 @@ public class UnifSearchController extends AbstractSearchController {
 		sessionBean.setRecentWord(wordValue);
 		sessionBean.setLinkedLexemeId(null);
 
-		String ekilexLimTermSearchUrl = webUtil.getEkilexLimTermSearchUrl();
+		populateUserPref(sessionBean, model);
 		model.addAttribute("wordData", wordData);
 		model.addAttribute("searchMode", SEARCH_MODE_DETAIL);
 		model.addAttribute("ekilexLimTermSearchUrl", ekilexLimTermSearchUrl);
@@ -168,7 +212,8 @@ public class UnifSearchController extends AbstractSearchController {
 
 		String randomWord = unifSearchService.getRandomWord();
 		String searchUri = webUtil.composeDetailSearchUri(DESTIN_LANG_ALL, DATASET_ALL, randomWord, null);
-		return "redirect:" + searchUri;
+
+		return REDIRECT_PREF + searchUri;
 	}
 
 	@GetMapping(SEARCH_LINK_URI + UNIF_URI + "/{linkType}/{linkId}")
@@ -186,9 +231,95 @@ public class UnifSearchController extends AbstractSearchController {
 		return linkWord;
 	}
 
-	private SearchValidation validateAndCorrectSearch(String destinLangsStr, String datasetCodesStr, String searchWord, String homonymNrStr) {
+	@PostMapping(USER_PREF_URI + "/{elementName}/{elementValue}")
+	@ResponseBody
+	public String setUserPreference(
+			@PathVariable("elementName") String elementName,
+			@PathVariable("elementValue") String elementValue,
+			@CookieValue(name = COOKIE_NAME_UI_SECTIONS, required = false) String uiSectionsStr,
+			@ModelAttribute(SESSION_BEAN) SessionBean sessionBean,
+			HttpServletRequest request,
+			HttpServletResponse response) {
 
-		boolean isValid = true;
+		List<String> uiSections;
+		if (StringUtils.isBlank(uiSectionsStr)) {
+			uiSections = new ArrayList<>();
+		} else {
+			String[] uiSectionsArr = StringUtils.split(uiSectionsStr, COOKIE_VALUES_SEPARATOR);
+			uiSections = new ArrayList<>(Arrays.asList(uiSectionsArr));
+			deleteCookies(request, response, COOKIE_NAME_UI_SECTIONS);
+		}
+		if (StringUtils.equalsIgnoreCase(elementValue, "open")) {
+			if (!uiSections.contains(elementName)) {
+				uiSections.add(elementName);
+			}
+		} else if (StringUtils.equalsIgnoreCase(elementValue, "close")) {
+			uiSections.remove(elementName);
+		}
+		sessionBean.setUiSections(uiSections);
+		uiSectionsStr = StringUtils.join(uiSections, COOKIE_VALUES_SEPARATOR);
+
+		setCookie(response, COOKIE_NAME_UI_SECTIONS, uiSectionsStr);
+
+		return "OK";
+	}
+
+	private SearchValidation validateAndCorrectWordSearch(String destinLangsStr, String datasetCodesStr, String searchWord, String homonymNrStr) {
+
+		SearchValidation searchValidation = new SearchValidation();
+		searchValidation.setValid(true);
+
+		// lang and dataset
+		applyDestinLangAndDatasetValidations(searchValidation, destinLangsStr, datasetCodesStr);
+		boolean isValid = searchValidation.isValid();
+
+		// homonym nr
+		Integer homonymNr = nullSafe(homonymNrStr);
+		if (homonymNr == null) {
+			homonymNr = 1;
+			isValid = isValid & false;
+		}
+
+		destinLangsStr = StringUtils.join(searchValidation.getDestinLangs(), UI_FILTER_VALUES_SEPARATOR);
+		datasetCodesStr = StringUtils.join(searchValidation.getDatasetCodes(), UI_FILTER_VALUES_SEPARATOR);
+		String searchUri = webUtil.composeDetailSearchUri(destinLangsStr, datasetCodesStr, searchWord, homonymNr);
+
+		searchValidation.setSearchWord(searchWord);
+		searchValidation.setHomonymNr(homonymNr);
+		searchValidation.setSearchUri(searchUri);
+		searchValidation.setValid(isValid);
+
+		return searchValidation;
+	}
+
+	private SearchValidation validateAndCorrectMaskedSearch(String destinLangsStr, String datasetCodesStr, String searchWord) {
+
+		SearchValidation searchValidation = new SearchValidation();
+		searchValidation.setValid(true);
+
+		// lang and dataset
+		applyDestinLangAndDatasetValidations(searchValidation, destinLangsStr, datasetCodesStr);
+		boolean isValid = searchValidation.isValid();
+
+		// mask
+		String cleanMaskSearchWord = cleanupMask(searchWord);
+		isValid = isValid & isValidMaskedSearch(searchWord, cleanMaskSearchWord);
+		isValid = isValid & StringUtils.equals(searchWord, cleanMaskSearchWord);
+
+		destinLangsStr = StringUtils.join(searchValidation.getDestinLangs(), UI_FILTER_VALUES_SEPARATOR);
+		datasetCodesStr = StringUtils.join(searchValidation.getDatasetCodes(), UI_FILTER_VALUES_SEPARATOR);
+		String searchUri = webUtil.composeDetailSearchUri(destinLangsStr, datasetCodesStr, cleanMaskSearchWord, null);
+
+		searchValidation.setSearchWord(cleanMaskSearchWord);
+		searchValidation.setSearchUri(searchUri);
+		searchValidation.setValid(isValid);
+
+		return searchValidation;
+	}
+
+	private void applyDestinLangAndDatasetValidations(SearchValidation searchValidation, String destinLangsStr, String datasetCodesStr) {
+
+		boolean isValid = searchValidation.isValid();
 
 		// lang
 		String[] destinLangsArr = StringUtils.split(destinLangsStr, UI_FILTER_VALUES_SEPARATOR);
@@ -226,39 +357,22 @@ public class UnifSearchController extends AbstractSearchController {
 			isValid = isValid & false;
 		}
 
-		// homonym nr
-		Integer homonymNr = nullSafe(homonymNrStr);
-		if (homonymNr == null) {
-			homonymNr = 1;
-			isValid = isValid & false;
-		}
-
-		destinLangsStr = StringUtils.join(destinLangs, UI_FILTER_VALUES_SEPARATOR);
-		datasetCodesStr = StringUtils.join(datasetCodes, UI_FILTER_VALUES_SEPARATOR);
-		String searchUri = webUtil.composeDetailSearchUri(destinLangsStr, datasetCodesStr, searchWord, homonymNr);
-
-		SearchValidation searchValidation = new SearchValidation();
 		searchValidation.setDestinLangs(destinLangs);
 		searchValidation.setDatasetCodes(datasetCodes);
-		searchValidation.setSearchWord(searchWord);
-		searchValidation.setHomonymNr(homonymNr);
-		searchValidation.setSearchUri(searchUri);
 		searchValidation.setValid(isValid);
-
-		return searchValidation;
 	}
 
-	private void populateSearchModel(String searchWord, WordsData wordsData, Model model) {
+	private void populateSearchModel(String searchWord, boolean isSearchFilterPresent, HttpServletRequest request, Model model) {
 
 		List<UiFilterElement> langFilter = commonDataService.getUnifLangFilter();
-		SessionBean sessionBean = populateCommonModel(model);
+		SessionBean sessionBean = populateCommonModel(isSearchFilterPresent, request, model);
 		populateLangFilter(langFilter, sessionBean, model);
 		populateDatasetFilter(sessionBean, model);
+		populateUserPref(sessionBean, model);
 
 		model.addAttribute("searchUri", SEARCH_URI + UNIF_URI);
 		model.addAttribute("searchMode", SEARCH_MODE_DETAIL);
 		model.addAttribute("searchWord", searchWord);
-		model.addAttribute("wordsData", wordsData);
 		model.addAttribute("wordData", new WordData());
 	}
 

@@ -9,11 +9,11 @@
   <th:block th:replace="common :: nav_bar(activeItem = 'workloadreport')"></th:block>
   <div class="container-fluid">
     <div class="card mt-4 shadow">
-      <form th:action="@{/workloadreport/search}" method="post">
-        <div class="card-header">
-          <h5 class="card-title" th:text="#{workloadreport.title}">Muudatuste aruanne</h5>
-        </div>
-        <div class="card-body">
+      <div class="card-header">
+        <h5 class="card-title" th:text="#{workloadreport.title}">Muudatuste aruanne</h5>
+      </div>
+      <div class="card-body">
+        <form th:action="@{/workloadreport/search}" method="post">
           <div class="form-group row">
             <label class="col-md-2 col-form-label" th:text="#{workloadreport.period}">Periood</label>
             <div class="col-md-2 input-group date" data-provide="datepicker" th:title="#{workloadreport.period.from}" data-date-language="et" data-date-autoclose="true">
@@ -34,14 +34,17 @@
             </div>
           </div>
           <div class="form-group row">
-            <label class="col-md-2 col-form-label" th:text="#{workloadreport.dataset}">Sõnakogu</label>
+            <label class="col-md-2 col-form-label" th:text="#{workloadreport.datasets}">Rolli sõnakogud</label>
             <div class="col-md-4">
-              <select required class="form-control required-field" name="datasetCode" data-plugin="workloadReportDatasetSelectPlugin">
-                <option value="" hidden disabled selected th:text="#{common.select}">Vali</option>
+              <select name="datasetCodes" class="dataset-select" multiple data-live-search="true" th:title="#{workloadreport.select.dataset.codes}" data-plugin="workloadReportDatasetSelectPlugin"
+                      data-actions-box="true" th:data-select-all-text="#{common.select.all}" th:data-deselect-all-text="#{common.unselect.all}">
+                <option value="dataset-none"
+                        th:text="#{workloadreport.dataset.none}"
+                        th:selected="${datasetCodes != null && #lists.contains(datasetCodes, 'dataset-none')}">Roll määramata</option>
                 <option th:each="dataset : ${workloadReportDatasets}"
                         th:value="${dataset.code}"
                         th:text="${dataset.name}"
-                        th:selected="${dataset.code == datasetCode}">dataset
+                        th:selected="${datasetCodes != null && #lists.contains(datasetCodes, dataset.code)}">dataset
                 </option>
               </select>
             </div>
@@ -51,9 +54,22 @@
               <th:block th:replace="workloadreportcomp :: dataset_users_select"></th:block>
             </th:block>
           </div>
-          <div>
-            <th:block th:if="${workloadReport != null}">
-              <table class="table table-striped m-0 p-0 table-hover w-auto">
+        </form>
+        <div>
+          <th:block th:if="${workloadReport != null}">
+            <hr/>
+            <div th:if="${workloadReport.resultCount == 0}">
+              <span class="font-weight-bold" th:text="#{workloadreport.no.results}">Tulemusi ei leitud</span>
+            </div>
+            <div th:if="${workloadReport.resultCount > 0}">
+              <form th:action="@{/workloadreport/download}" method="post">
+                <input type="hidden" name="dateFrom" th:value="${#temporals.format(dateFrom, 'dd.MM.yyyy')}">
+                <input type="hidden" name="dateUntil" th:value="${#temporals.format(dateUntil, 'dd.MM.yyyy')}">
+                <input type="hidden" name="datasetCodes" th:value="${#strings.listJoin(datasetCodes, ', ')}">
+                <input type="hidden" name="userNames" th:value="${#strings.listJoin(userNames, ', ')}">
+                <button type="submit" class="btn btn-sm btn-secondary mb-2" th:text="#{workloadreport.download}">Laadi alla</button>
+              </form>
+              <table class="table table-sm table-striped m-0 p-0 table-hover w-auto">
                 <tr>
                   <th></th>
                   <th:block th:each="userName : ${workloadReport.userNames}">
@@ -61,26 +77,41 @@
                   </th:block>
                   <th th:text="#{workloadreport.total}">KOKKU:</th>
                 </tr>
-                <th:block th:each="reportRow : ${workloadReport.reportRows}">
+                <th:block th:each="activityReport : ${workloadReport.activityReports}">
                   <tr class="font-weight-bold">
                     <td>
-                      <span th:text="#{|workloadreport.owner.type.${reportRow.activityOwner}.${reportRow.activityType}|}"></span>
+                      <span th:text="#{|workloadreport.owner.type.${activityReport.activityOwner}.${activityReport.activityType}|}"></span>
                     </td>
-                    <th:block th:each="userCount : ${reportRow.userCounts}">
+                    <th:block th:each="activityReportUser : ${activityReport.activityReportUsers}">
                       <td>
-                        <span th:text="${userCount.count}"></span>
+                        <span th:text="${activityReportUser.count}"></span>
                       </td>
                     </th:block>
-                    <td class="font-weight-bold" th:text="${reportRow.totalCount}"></td>
+                    <td class="font-weight-bold" th:text="${activityReport.totalCount}"></td>
                   </tr>
-                  <th:block th:each="functionRow : ${reportRow.functionRows}">
+                  <th:block th:each="functionReport : ${activityReport.functionReports}">
                     <tr class="small">
                       <td>
-                        <span th:text="${functionRow.functName}"></span>
+                        <span th:text="${functionReport.functName}"></span>
                       </td>
-                      <th:block th:each="functionRowUserCount : ${functionRow.userCounts}">
+                      <th:block th:each="functionReportUser : ${functionReport.functionReportUsers}">
                         <td>
-                          <span th:text="${functionRowUserCount.count}"></span>
+                          <th:block th:if="${#lists.isEmpty(functionReportUser.ownerIds)}">
+                            <span th:text="${functionReportUser.count}"></span>
+                          </th:block>
+                          <th:block th:if="${not #lists.isEmpty(functionReportUser.ownerIds)}">
+                            <div data-toggle="tooltip" data-placement="top" th:title="${#strings.listJoin(functionReportUser.wordValues, ', ')}">
+                              <a href="#" role="button" data-toggle="dropdown" th:text="${functionReportUser.count}"></a>
+                              <div class="dropdown-menu">
+                                <a class="dropdown-item btn btn-secondary font-weight-bold btn-sm" target="_blank"
+                                   th:href="@{'/workloadreport/lexsearch/' + ${activityReport.activityOwner} + '/' + ${#strings.listJoin(functionReportUser.lexSearchIds, ', ')}}"
+                                   th:text="#{workloadreport.lex.search}">Leks otsing</a>
+                                <a class="dropdown-item btn btn-secondary font-weight-bold btn-sm" target="_blank"
+                                   th:href="@{'/workloadreport/termsearch/' + ${activityReport.activityOwner} + '/' + ${#strings.listJoin(functionReportUser.termSearchIds, ', ')}}"
+                                   th:text="#{workloadreport.term.search}">Term otsing</a>
+                              </div>
+                            </div>
+                          </th:block>
                         </td>
                       </th:block>
                       <td></td>
@@ -88,15 +119,15 @@
                   </th:block>
                 </th:block>
               </table>
-            </th:block>
-          </div>
+            </div>
+          </th:block>
         </div>
-      </form>
+      </div>
     </div>
   </div>
   <div th:replace="common :: #waitDlg"></div>
   <script th:inline="javascript">
-	  initDatasetUsersSelect();
+	  initializeWorkloadReport();
   </script>
 </body>
 </html>

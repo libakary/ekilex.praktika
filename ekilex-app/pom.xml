@@ -6,12 +6,12 @@
 	<parent>
 		<groupId>eki.ekilex</groupId>
 		<artifactId>eki-root</artifactId>
-		<version>1.32-SNAPSHOT</version>
+		<version>1.33-SNAPSHOT</version>
 	</parent>
 
 	<groupId>eki.ekilex</groupId>
 	<artifactId>ekilex-app</artifactId>
-	<version>1.32-SNAPSHOT</version>
+	<version>1.33-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>Ekilex App</name>
@@ -213,6 +213,14 @@
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

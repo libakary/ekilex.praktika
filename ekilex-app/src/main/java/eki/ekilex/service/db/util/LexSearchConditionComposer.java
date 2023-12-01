@@ -67,7 +67,7 @@ public class LexSearchConditionComposer implements GlobalConstant, ActivityFunct
 
 	public Condition createSearchCondition(Word word, String searchWordCrit, SearchDatasetsRestriction searchDatasetsRestriction) {
 
-		String maskedSearchFilter = searchWordCrit.replace(QUERY_MULTIPLE_CHARACTERS_SYM, "%").replace(QUERY_SINGLE_CHARACTER_SYM, "_");
+		String maskedSearchFilter = searchWordCrit.replace(SEARCH_MASK_CHARS, "%").replace(SEARCH_MASK_CHAR, "_");
 		Field<String> filterField = DSL.lower(maskedSearchFilter);
 
 		Condition where = composeWordDatasetsCondition(word, searchDatasetsRestriction);
@@ -108,7 +108,7 @@ public class LexSearchConditionComposer implements GlobalConstant, ActivityFunct
 				}
 
 				containsSearchKeys = searchFilterHelper.containsSearchKeys(searchCriteria,
-						SearchKey.SOURCE_REF, SearchKey.SOURCE_NAME, SearchKey.PUBLICITY, SearchKey.LEXEME_GRAMMAR,
+						SearchKey.SOURCE_REF, SearchKey.SOURCE_NAME, SearchKey.SOURCE_VALUE, SearchKey.PUBLICITY, SearchKey.LEXEME_GRAMMAR,
 						SearchKey.LEXEME_VALUE_STATE, SearchKey.LEXEME_PROFICIENCY_LEVEL, SearchKey.LEXEME_GOVERNMENT,
 						SearchKey.COMPLEXITY, SearchKey.LEXEME_POS, SearchKey.LEXEME_REGISTER, SearchKey.LEXEME_NOTE);
 				if (containsSearchKeys) {
@@ -116,7 +116,7 @@ public class LexSearchConditionComposer implements GlobalConstant, ActivityFunct
 					where1 = searchFilterHelper.applyDatasetRestrictions(l1, searchDatasetsRestriction, where1);
 					where1 = searchFilterHelper.applyPublicityFilters(searchCriteria, l1.IS_PUBLIC, where1);
 					where1 = searchFilterHelper.applyLexemeSourceRefFilter(searchCriteria, l1.ID, where1);
-					where1 = searchFilterHelper.applyLexemeSourceNameFilter(searchCriteria, l1.ID, where1);
+					where1 = searchFilterHelper.applyLexemeSourceFilters(searchCriteria, l1.ID, where1);
 					where1 = searchFilterHelper.applyLexemeFreeformFilters(SearchKey.LEXEME_GRAMMAR, FreeformType.GRAMMAR, searchCriteria, l1.ID, where1);
 					where1 = searchFilterHelper.applyLexemeFreeformFilters(SearchKey.LEXEME_GOVERNMENT, FreeformType.GOVERNMENT, searchCriteria, l1.ID, where1);
 					where1 = searchFilterHelper.applyLexemeFreeformFilters(SearchKey.LEXEME_NOTE, FreeformType.NOTE, searchCriteria, l1.ID, where1);
@@ -159,6 +159,7 @@ public class LexSearchConditionComposer implements GlobalConstant, ActivityFunct
 				}
 
 				where = searchFilterHelper.applyIdFilters(SearchKey.ID, searchCriteria, w1.ID, where);
+				where = searchFilterHelper.applyCommaSeparatedIdsFilters(searchCriteria, w1.ID, where);
 				where = searchFilterHelper.applyValueFilters(SearchKey.LANGUAGE, searchCriteria, w1.LANG, where, false);
 				where = searchFilterHelper.applyWordAspectFilters(searchCriteria, w1.ASPECT_CODE, where);
 				where = searchFilterHelper.applyWordMorphophonoFormFilters(searchCriteria, w1.MORPHOPHONO_FORM, where);
@@ -187,7 +188,7 @@ public class LexSearchConditionComposer implements GlobalConstant, ActivityFunct
 				boolean containsSearchKeys;
 
 				containsSearchKeys = searchFilterHelper.containsSearchKeys(searchCriteria,
-						SearchKey.VALUE, SearchKey.ID, SearchKey.SOURCE_REF, SearchKey.SOURCE_NAME,  SearchKey.ASPECT, SearchKey.WORD_TYPE,
+						SearchKey.VALUE, SearchKey.ID, SearchKey.SOURCE_REF, SearchKey.SOURCE_NAME, SearchKey.SOURCE_VALUE,  SearchKey.ASPECT, SearchKey.WORD_TYPE,
 						SearchKey.PUBLICITY, SearchKey.LEXEME_GRAMMAR, SearchKey.LEXEME_GOVERNMENT, SearchKey.LEXEME_POS,
 						SearchKey.LEXEME_REGISTER, SearchKey.LEXEME_VALUE_STATE, SearchKey.COMPLEXITY,
 						SearchKey.CREATED_OR_UPDATED_BY, SearchKey.UPDATED_ON, SearchKey.CREATED_ON);
@@ -200,7 +201,7 @@ public class LexSearchConditionComposer implements GlobalConstant, ActivityFunct
 						where1 = where1.and(DSL.or(where2, where3));
 					}
 					boolean containsSearchKeys2 = searchFilterHelper.containsSearchKeys(searchCriteria,
-							SearchKey.ID, SearchKey.SOURCE_REF, SearchKey.SOURCE_NAME, SearchKey.ASPECT, SearchKey.WORD_TYPE,
+							SearchKey.ID, SearchKey.SOURCE_REF, SearchKey.SOURCE_NAME, SearchKey.SOURCE_VALUE, SearchKey.ASPECT, SearchKey.WORD_TYPE,
 							SearchKey.PUBLICITY, SearchKey.LEXEME_GRAMMAR, SearchKey.LEXEME_GOVERNMENT, SearchKey.LEXEME_POS,
 							SearchKey.LEXEME_REGISTER, SearchKey.LEXEME_VALUE_STATE, SearchKey.COMPLEXITY);
 					if (containsSearchKeys2) {
@@ -209,7 +210,7 @@ public class LexSearchConditionComposer implements GlobalConstant, ActivityFunct
 						where1 = searchFilterHelper.applyWordTypeValueFilters(searchCriteria, w2.ID, where1);
 						where1 = searchFilterHelper.applyWordTypeExistsFilters(searchCriteria, w2.ID, where1);
 						where1 = searchFilterHelper.applyLexemeSourceRefFilter(searchCriteria, l2.ID, where1);
-						where1 = searchFilterHelper.applyLexemeSourceNameFilter(searchCriteria, l2.ID, where1);
+						where1 = searchFilterHelper.applyLexemeSourceFilters(searchCriteria, l2.ID, where1);
 						where1 = searchFilterHelper.applyPublicityFilters(searchCriteria, l2.IS_PUBLIC, where1);
 						where1 = searchFilterHelper.applyLexemeFreeformFilters(SearchKey.LEXEME_GRAMMAR, FreeformType.GRAMMAR, searchCriteria, l2.ID, where1);
 						where1 = searchFilterHelper.applyLexemeFreeformFilters(SearchKey.LEXEME_GOVERNMENT, FreeformType.GOVERNMENT, searchCriteria, l2.ID, where1);
@@ -280,6 +281,7 @@ public class LexSearchConditionComposer implements GlobalConstant, ActivityFunct
 				where1 = searchFilterHelper.applyMeaningSemanticTypeValueFilters(searchCriteria, m1.ID, where1);
 				where1 = searchFilterHelper.applyMeaningSemanticTypeExistsFilters(searchCriteria, m1.ID, where1);
 				where1 = searchFilterHelper.applyIdFilters(SearchKey.ID, searchCriteria, m1.ID, where1);
+				where1 = searchFilterHelper.applyCommaSeparatedIdsFilters(searchCriteria, m1.ID, where1);
 				where1 = searchFilterHelper.applyMeaningRelationValueFilters(searchCriteria, m1.ID, where1);
 				where1 = searchFilterHelper.applyMeaningRelationExistsFilters(searchCriteria, m1.ID, where1);
 				where1 = searchFilterHelper.applyMeaningForumFilters(searchCriteria, m1.ID, where1);
@@ -303,7 +305,7 @@ public class LexSearchConditionComposer implements GlobalConstant, ActivityFunct
 				} else {
 					where1 = searchFilterHelper.applyValueFilters(SearchKey.VALUE_AND_EXISTS, searchCriteria, d1.VALUE, where2, true);
 					where1 = searchFilterHelper.applyDefinitionSourceRefFilter(searchCriteria, d1.ID, where1);
-					where1 = searchFilterHelper.applyDefinitionSourceNameFilter(searchCriteria, d1.ID, where1);
+					where1 = searchFilterHelper.applyDefinitionSourceFilters(searchCriteria, d1.ID, where1);
 					where1 = searchFilterHelper.applyPublicityFilters(searchCriteria, d1.IS_PUBLIC, where1);
 					where1 = searchFilterHelper.applyLexemeComplexityFilters(searchCriteria, d1.COMPLEXITY, where1);
 					where1 = searchFilterHelper.applyDefinitionFreeformFilters(SearchKey.DEFINITION_NOTE, FreeformType.NOTE, searchCriteria, d1.ID, where1);
@@ -345,7 +347,7 @@ public class LexSearchConditionComposer implements GlobalConstant, ActivityFunct
 					where = where.andNotExists(DSL.select(u1.ID).from(l1, l1ff, u1).where(where2));
 				} else {
 					where1 = searchFilterHelper.applyValueFilters(SearchKey.VALUE_AND_EXISTS, searchCriteria, u1.VALUE_TEXT, where2, true);
-					where1 = searchFilterHelper.applyFreeformSourceNameFilter(searchCriteria, u1.ID, where1);
+					where1 = searchFilterHelper.applyFreeformSourceFilters(searchCriteria, u1.ID, where1);
 					where1 = searchFilterHelper.applyFreeformSourceRefFilter(searchCriteria, u1.ID, where1);
 					where1 = searchFilterHelper.applyPublicityFilters(searchCriteria, u1.IS_PUBLIC, where1);
 					where1 = searchFilterHelper.applyLexemeComplexityFilters(searchCriteria, u1.COMPLEXITY, where1);
@@ -378,7 +380,7 @@ public class LexSearchConditionComposer implements GlobalConstant, ActivityFunct
 				boolean isNotExistsSearch = searchFilterHelper.isNotExistsSearch(SearchKey.VALUE_AND_EXISTS, searchCriteria);
 
 				where3 = searchFilterHelper.applyValueFilters(SearchKey.VALUE_AND_EXISTS, searchCriteria, nff3.VALUE_TEXT, where3, true);
-				where3 = searchFilterHelper.applyFreeformSourceNameFilter(searchCriteria, nff3.ID, where3);
+				where3 = searchFilterHelper.applyFreeformSourceFilters(searchCriteria, nff3.ID, where3);
 				where3 = searchFilterHelper.applyFreeformSourceRefFilter(searchCriteria, nff3.ID, where3);
 
 				Table<Record1<Long>> n2 = DSL.select(nff3.ID.as("freeform_id")).from(nff3).where(where3).asTable("n2");

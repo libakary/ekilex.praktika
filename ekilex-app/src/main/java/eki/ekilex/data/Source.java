@@ -2,6 +2,8 @@ package eki.ekilex.data;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import eki.common.constant.SourceType;
 
 public class Source extends AbstractCrudEntity {
@@ -12,7 +14,17 @@ public class Source extends AbstractCrudEntity {
 
 	private SourceType type;
 
-	private List<String> sourceNames;
+	private String name;
+
+	private String value;
+
+	private String valuePrese;
+
+	private String comment;
+
+	private boolean isPublic;
+
+	private List<String> nameTypeSourceProperties;
 
 	private List<SourceProperty> sourceProperties;
 
@@ -32,12 +44,52 @@ public class Source extends AbstractCrudEntity {
 		this.type = type;
 	}
 
-	public List<String> getSourceNames() {
-		return sourceNames;
+	public String getName() {
+		return name;
 	}
 
-	public void setSourceNames(List<String> sourceNames) {
-		this.sourceNames = sourceNames;
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String getValue() {
+		return value;
+	}
+
+	public void setValue(String value) {
+		this.value = value;
+	}
+
+	public String getValuePrese() {
+		return valuePrese;
+	}
+
+	public void setValuePrese(String valuePrese) {
+		this.valuePrese = valuePrese;
+	}
+
+	public String getComment() {
+		return comment;
+	}
+
+	public void setComment(String comment) {
+		this.comment = comment;
+	}
+
+	public boolean isPublic() {
+		return isPublic;
+	}
+
+	public void setPublic(boolean isPublic) {
+		this.isPublic = isPublic;
+	}
+
+	public List<String> getNameTypeSourceProperties() {
+		return nameTypeSourceProperties;
+	}
+
+	public void setNameTypeSourceProperties(List<String> nameTypeSourceProperties) {
+		this.nameTypeSourceProperties = nameTypeSourceProperties;
 	}
 
 	public List<SourceProperty> getSourceProperties() {
@@ -47,5 +99,4 @@ public class Source extends AbstractCrudEntity {
 	public void setSourceProperties(List<SourceProperty> sourceProperties) {
 		this.sourceProperties = sourceProperties;
 	}
-
 }

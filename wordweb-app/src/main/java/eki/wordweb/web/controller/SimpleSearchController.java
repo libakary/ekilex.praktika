@@ -22,9 +22,10 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.SessionAttributes;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import eki.common.data.SearchStat;
 import eki.wordweb.constant.WebConstant;
+import eki.wordweb.data.AbstractSearchResult;
 import eki.wordweb.data.SearchFilter;
-import eki.wordweb.data.SearchRequest;
 import eki.wordweb.data.SearchValidation;
 import eki.wordweb.data.UiFilterElement;
 import eki.wordweb.data.Word;
@@ -42,33 +43,47 @@ public class SimpleSearchController extends AbstractSearchController {
 	private SimpleSearchService simpleSearchService;
 
 	@GetMapping(LITE_URI)
-	public String home(Model model) {
-		populateSearchModel("", new WordsData(), model);
+	public String home(HttpServletRequest request, Model model) {
+		populateSearchModel("", request, model);
+		model.addAttribute("wordsData", new WordsData());
 		return LITE_HOME_PAGE;
 	}
 
 	@GetMapping(SEARCH_URI + LITE_URI)
-	public String search(Model model) {
-		populateSearchModel("", new WordsData(), model);
+	public String search(HttpServletRequest request, Model model) {
+		populateSearchModel("", request, model);
+		model.addAttribute("wordsData", new WordsData());
 		return LITE_SEARCH_PAGE;
 	}
 
 	@PostMapping(SEARCH_URI + LITE_URI)
 	public String searchWords(
-			@RequestParam(name = "destinLangsStr") String destinLangStr,
+			@RequestParam(name = "destinLangsStr") String destinLangsStr,
 			@RequestParam(name = "searchWord") String searchWord,
 			@RequestParam(name = "selectedWordHomonymNr", required = false) String selectedWordHomonymNrStr,
 			RedirectAttributes redirectAttributes) {
 
 		searchWord = StringUtils.trim(searchWord);
+		searchWord = decode(searchWord);
 		if (StringUtils.isBlank(searchWord)) {
-			return "redirect:" + SEARCH_URI + LITE_URI;
+			return REDIRECT_PREF + SEARCH_URI + LITE_URI;
 		}
-		setSearchFormAttribute(redirectAttributes, Boolean.TRUE);
+		Integer selectedWordHomonymNr = null;
+		if (webUtil.isMaskedSearchCrit(searchWord)) {
+			String cleanMaskSearchWord = cleanupMask(searchWord);
+			boolean isValidMaskedSearch = isValidMaskedSearch(searchWord, cleanMaskSearchWord);
+			if (!isValidMaskedSearch) {
+				return REDIRECT_PREF + SEARCH_URI + LITE_URI;
+			}
+			searchWord = cleanMaskSearchWord;
+		} else {
+			selectedWordHomonymNr = nullSafe(selectedWordHomonymNrStr);
+		}
 		searchWord = textDecorationService.unifyToApostrophe(searchWord);
-		Integer selectedWordHomonymNr = nullSafe(selectedWordHomonymNrStr);
-		String searchUri = webUtil.composeSimpleSearchUri(destinLangStr, searchWord, selectedWordHomonymNr);
-		return "redirect:" + searchUri;
+		String searchUri = webUtil.composeSimpleSearchUri(destinLangsStr, searchWord, selectedWordHomonymNr);
+		setSearchFormAttribute(redirectAttributes, Boolean.TRUE);
+
+		return REDIRECT_PREF + searchUri;
 	}
 
 	@GetMapping({
@@ -82,37 +97,59 @@ public class SimpleSearchController extends AbstractSearchController {
 			RedirectAttributes redirectAttributes,
 			Model model) throws Exception {
 
-		boolean isSearchForm = isSearchForm(model);
-		boolean sessionBeanNotPresent = sessionBeanNotPresent(model);
+		boolean sessionBeanNotPresent = isSessionBeanNotPresent(model);
 		SessionBean sessionBean;
 		if (sessionBeanNotPresent) {
-			sessionBean = createSessionBean(model);
+			sessionBean = createSessionBean(true, request, model);
 		} else {
 			sessionBean = getSessionBean(model);
 		}
 
+		boolean isSearchForm = isSearchForm(model);
 		searchWord = decode(searchWord);
-		SearchValidation searchValidation = validateAndCorrectSearch(destinLangsStr, searchWord, homonymNrStr);
-		sessionBean.setSearchWord(searchWord);
+		boolean isMaskedSearchCrit = webUtil.isMaskedSearchCrit(searchWord);
+
+		SearchValidation searchValidation;
+		if (isMaskedSearchCrit) {
+			searchValidation = validateAndCorrectMaskedSearch(destinLangsStr, searchWord);
+		} else {
+			searchValidation = validateAndCorrectWordSearch(destinLangsStr, searchWord, homonymNrStr);
+		}
+
+		sessionBean.setSearchWord(searchValidation.getSearchWord());
+		sessionBean.setDestinLangs(searchValidation.getDestinLangs());
+		sessionBean.setDatasetCodes(searchValidation.getDatasetCodes());
 
 		if (sessionBeanNotPresent) {
 			//to get rid of the sessionid in the url
-			return "redirect:" + searchValidation.getSearchUri();
+			return REDIRECT_PREF + searchValidation.getSearchUri();
 		} else if (!searchValidation.isValid()) {
 			setSearchFormAttribute(redirectAttributes, isSearchForm);
-			return "redirect:" + searchValidation.getSearchUri();
+			return REDIRECT_PREF + searchValidation.getSearchUri();
 		}
 
-		List<String> destinLangs = searchValidation.getDestinLangs();
-		sessionBean.setDestinLangs(destinLangs);
+		String pageName;
+		AbstractSearchResult searchResult;
 
-		WordsData wordsData = simpleSearchService.getWords(searchValidation);
-		populateSearchModel(searchWord, wordsData, model);
+		if (isMaskedSearchCrit) {
 
-		SearchRequest searchRequest = populateSearchRequest(request, isSearchForm, SEARCH_MODE_SIMPLE, searchValidation, wordsData);
-		statDataCollector.postSearchStat(searchRequest);
+			searchResult = simpleSearchService.getWordsWithMask(searchValidation);
+			model.addAttribute("wordsMatch", searchResult);
+			pageName = LITE_WORDS_PAGE;
 
-		return LITE_SEARCH_PAGE;
+		} else {
+
+			searchResult = simpleSearchService.getWords(searchValidation);
+			model.addAttribute("wordsData", searchResult);
+			pageName = LITE_SEARCH_PAGE;
+		}
+
+		populateSearchModel(searchWord, request, model);
+
+		SearchStat searchStat = statDataUtil.composeSearchStat(request, isSearchForm, SEARCH_MODE_SIMPLE, searchValidation, searchResult);
+		statDataCollector.postSearchStat(searchStat);
+
+		return pageName;
 	}
 
 	@GetMapping(value = SEARCH_WORD_FRAG_URI + LITE_URI + "/{wordFrag}", produces = "application/json;charset=UTF-8")
@@ -124,6 +161,7 @@ public class SimpleSearchController extends AbstractSearchController {
 		List<String> destinLangs = sessionBean.getDestinLangs();
 		List<String> datasetCodes = sessionBean.getDatasetCodes();
 		SearchFilter searchFilter = new SearchFilter(destinLangs, datasetCodes);
+
 		return simpleSearchService.getWordsByInfixLev(wordFragment, searchFilter, AUTOCOMPLETE_MAX_RESULTS_LIMIT);
 	}
 
@@ -138,9 +176,10 @@ public class SimpleSearchController extends AbstractSearchController {
 		SearchFilter searchFilter = new SearchFilter(destinLangs, datasetCodes);
 		WordData wordData = simpleSearchService.getWordData(wordId, searchFilter);
 
+		populateUserPref(sessionBean, model);
+		populateRecent(sessionBean, wordData);
 		model.addAttribute("wordData", wordData);
 		model.addAttribute("searchMode", SEARCH_MODE_SIMPLE);
-		populateRecent(sessionBean, wordData);
 
 		return LITE_SEARCH_PAGE + " :: worddetails";
 	}
@@ -151,9 +190,60 @@ public class SimpleSearchController extends AbstractSearchController {
 		sessionBean.setRecentWord(wordValue);
 	}
 
-	private SearchValidation validateAndCorrectSearch(String destinLangsStr, String searchWord, String homonymNrStr) {
+	private SearchValidation validateAndCorrectWordSearch(String destinLangsStr, String searchWord, String homonymNrStr) {
 
-		boolean isValid = true;
+		SearchValidation searchValidation = new SearchValidation();
+		searchValidation.setValid(true);
+
+		// lang and dataset
+		applyDestinLangAndDatasetValidations(searchValidation, destinLangsStr);
+		boolean isValid = searchValidation.isValid();
+
+		// homonym nr
+		Integer homonymNr = nullSafe(homonymNrStr);
+		if (homonymNr == null) {
+			homonymNr = 1;
+			isValid = isValid & false;
+		}
+
+		destinLangsStr = StringUtils.join(searchValidation.getDestinLangs(), UI_FILTER_VALUES_SEPARATOR);
+		String searchUri = webUtil.composeSimpleSearchUri(destinLangsStr, searchWord, homonymNr);
+
+		searchValidation.setSearchWord(searchWord);
+		searchValidation.setHomonymNr(homonymNr);
+		searchValidation.setSearchUri(searchUri);
+		searchValidation.setValid(isValid);
+
+		return searchValidation;
+	}
+
+	private SearchValidation validateAndCorrectMaskedSearch(String destinLangsStr, String searchWord) {
+
+		SearchValidation searchValidation = new SearchValidation();
+		searchValidation.setValid(true);
+
+		// lang and dataset
+		applyDestinLangAndDatasetValidations(searchValidation, destinLangsStr);
+		boolean isValid = searchValidation.isValid();
+
+		// mask
+		String cleanMaskSearchWord = cleanupMask(searchWord);
+		isValid = isValid & isValidMaskedSearch(searchWord, cleanMaskSearchWord);
+		isValid = isValid & StringUtils.equals(searchWord, cleanMaskSearchWord);
+
+		destinLangsStr = StringUtils.join(searchValidation.getDestinLangs(), UI_FILTER_VALUES_SEPARATOR);
+		String searchUri = webUtil.composeSimpleSearchUri(destinLangsStr, cleanMaskSearchWord, null);
+
+		searchValidation.setSearchWord(cleanMaskSearchWord);
+		searchValidation.setSearchUri(searchUri);
+		searchValidation.setValid(isValid);
+
+		return searchValidation;
+	}
+
+	private void applyDestinLangAndDatasetValidations(SearchValidation searchValidation, String destinLangsStr) {
+
+		boolean isValid = searchValidation.isValid();
 
 		// lang
 		String[] destinLangsArr = StringUtils.split(destinLangsStr, UI_FILTER_VALUES_SEPARATOR);
@@ -175,37 +265,21 @@ public class SimpleSearchController extends AbstractSearchController {
 		// dataset
 		List<String> datasetCodes = Arrays.asList(DATASET_EKI);
 
-		// homonym nr
-		Integer homonymNr = nullSafe(homonymNrStr);
-		if (homonymNr == null) {
-			homonymNr = 1;
-			isValid = isValid & false;
-		}
-
-		destinLangsStr = StringUtils.join(destinLangs, UI_FILTER_VALUES_SEPARATOR);
-		String searchUri = webUtil.composeSimpleSearchUri(destinLangsStr, searchWord, homonymNr);
-
-		SearchValidation searchValidation = new SearchValidation();
 		searchValidation.setDestinLangs(destinLangs);
 		searchValidation.setDatasetCodes(datasetCodes);
-		searchValidation.setSearchWord(searchWord);
-		searchValidation.setHomonymNr(homonymNr);
-		searchValidation.setSearchUri(searchUri);
 		searchValidation.setValid(isValid);
-
-		return searchValidation;
 	}
 
-	protected void populateSearchModel(String searchWord, WordsData wordsData, Model model) {
+	private void populateSearchModel(String searchWord, HttpServletRequest request, Model model) {
 
 		List<UiFilterElement> langFilter = commonDataService.getSimpleLangFilter();
-		SessionBean sessionBean = populateCommonModel(model);
+		SessionBean sessionBean = populateCommonModel(true, request, model);
 		populateLangFilter(langFilter, sessionBean, model);
+		populateUserPref(sessionBean, model);
 
 		model.addAttribute("searchUri", SEARCH_URI + LITE_URI);
 		model.addAttribute("searchMode", SEARCH_MODE_SIMPLE);
 		model.addAttribute("searchWord", searchWord);
-		model.addAttribute("wordsData", wordsData);
 		model.addAttribute("wordData", new WordData());
 	}
 }

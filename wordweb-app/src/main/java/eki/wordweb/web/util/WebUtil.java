@@ -9,10 +9,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriUtils;
 
 import eki.common.constant.GlobalConstant;
+import eki.wordweb.constant.SystemConstant;
 import eki.wordweb.constant.WebConstant;
 
 @Component
-public class WebUtil implements WebConstant, GlobalConstant {
+public class WebUtil implements WebConstant, SystemConstant, GlobalConstant {
 
 	private static final String MEANING_ID_URL_PLACEHOLDER = "{meaningId}";
 
@@ -24,11 +25,18 @@ public class WebUtil implements WebConstant, GlobalConstant {
 	@Value("${corpus.service.rus.url}")
 	private String corpusServiceRusUrl;
 
+	public boolean isMaskedSearchCrit(String searchWord) {
+		if (StringUtils.containsAny(searchWord, SEARCH_MASK_CHARS, SEARCH_MASK_CHAR)) {
+			return true;
+		}
+		return false;
+	}
+
 	public String composeDetailSearchUri(String destinLangsStr, String datasetCodesStr, String word, Integer homonymNr) {
 		String encodedWord = encode(word);
 		String encodedDatasetCodesStr = encodeSeparatedValuesStr(datasetCodesStr);
 		String searchUri = StringUtils.join(SEARCH_URI, UNIF_URI, '/', destinLangsStr, '/', encodedDatasetCodesStr, '/', encodedWord);
-		if (homonymNr != null) {
+		if ((homonymNr != null)) {
 			searchUri += "/" + homonymNr;
 		}
 		return searchUri;

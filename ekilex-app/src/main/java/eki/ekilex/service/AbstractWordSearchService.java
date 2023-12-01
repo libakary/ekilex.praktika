@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import javax.transaction.Transactional;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -63,6 +64,10 @@ public abstract class AbstractWordSearchService extends AbstractSearchService {
 			wordCount = words.size();
 			if ((!noLimit && wordCount == maxResultsLimit) || offset > DEFAULT_OFFSET) {
 				wordCount = lexSearchDbService.countWords(searchFilter, searchDatasetsRestriction);
+				if (CollectionUtils.isEmpty(words) && wordCount > 0) {
+					int lastPageOffset = getLastPageOffset(wordCount);
+					words = lexSearchDbService.getWords(searchFilter, searchDatasetsRestriction, userRole, tagNames, lastPageOffset, maxResultsLimit, noLimit);
+				}
 			}
 		}
 		WordsResult result = new WordsResult();
@@ -71,9 +76,7 @@ public abstract class AbstractWordSearchService extends AbstractSearchService {
 
 		boolean showPaging = wordCount > maxResultsLimit;
 		result.setShowPaging(showPaging);
-		if (showPaging) {
-			setPagingData(offset, maxResultsLimit, wordCount, result);
-		}
+		setPagingData(offset, maxResultsLimit, wordCount, result);
 		return result;
 	}
 
@@ -86,7 +89,7 @@ public abstract class AbstractWordSearchService extends AbstractSearchService {
 		if (StringUtils.isBlank(searchFilter)) {
 			words = Collections.emptyList();
 			wordCount = 0;
-		} else if (StringUtils.containsOnly(searchFilter, QUERY_MULTIPLE_CHARACTERS_SYM)) {
+		} else if (StringUtils.containsOnly(searchFilter, SEARCH_MASK_CHARS)) {
 			throw new OperationDeniedException("Please be more specific. Use other means to dump data");
 		} else {
 			SearchDatasetsRestriction searchDatasetsRestriction = composeDatasetsRestriction(datasetCodes);
@@ -94,6 +97,10 @@ public abstract class AbstractWordSearchService extends AbstractSearchService {
 			wordCount = words.size();
 			if ((!noLimit && wordCount == maxResultsLimit) || offset > DEFAULT_OFFSET) {
 				wordCount = lexSearchDbService.countWords(searchFilter, searchDatasetsRestriction);
+				if (CollectionUtils.isEmpty(words) && wordCount > 0) {
+					int lastPageOffset = getLastPageOffset(wordCount);
+					words = lexSearchDbService.getWords(searchFilter, searchDatasetsRestriction, userRole, tagNames, lastPageOffset, maxResultsLimit, noLimit);
+				}
 			}
 		}
 		WordsResult result = new WordsResult();
@@ -102,9 +109,7 @@ public abstract class AbstractWordSearchService extends AbstractSearchService {
 
 		boolean showPaging = wordCount > maxResultsLimit;
 		result.setShowPaging(showPaging);
-		if (showPaging) {
-			setPagingData(offset, maxResultsLimit, wordCount, result);
-		}
+		setPagingData(offset, maxResultsLimit, wordCount, result);
 		return result;
 	}
 

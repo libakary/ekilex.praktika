@@ -3,9 +3,7 @@ package eki.wordweb.data;
 import java.util.Collections;
 import java.util.List;
 
-import eki.common.data.AbstractDataObject;
-
-public class WordsData extends AbstractDataObject {
+public class WordsData extends AbstractSearchResult {
 
 	private static final long serialVersionUID = 1L;
 
@@ -13,26 +11,27 @@ public class WordsData extends AbstractDataObject {
 
 	private final List<String> formMatchWordValues;
 
-	private final int resultCount;
-
-	private final boolean resultsExist;
-
-	private final boolean singleResult;
+	private final LanguagesDatasets availableLanguagesDatasets;
 
 	public WordsData() {
+		super(0, false, false);
 		this.wordMatchWords = Collections.emptyList();
 		this.formMatchWordValues = Collections.emptyList();
-		this.resultCount = 0;
-		this.resultsExist = false;
-		this.singleResult = false;
+		this.availableLanguagesDatasets = null;
 	}
 
 	public WordsData(List<Word> wordMatchWords, List<String> formMatchWordValues, int resultCount, boolean resultsExist, boolean singleResult) {
+		super(resultCount, resultsExist, singleResult);
 		this.wordMatchWords = wordMatchWords;
 		this.formMatchWordValues = formMatchWordValues;
-		this.resultCount = resultCount;
-		this.resultsExist = resultsExist;
-		this.singleResult = singleResult;
+		this.availableLanguagesDatasets = null;
+	}
+
+	public WordsData(LanguagesDatasets availableLanguagesDatasets) {
+		super(0, false, false);
+		this.wordMatchWords = Collections.emptyList();
+		this.formMatchWordValues = Collections.emptyList();
+		this.availableLanguagesDatasets = availableLanguagesDatasets;
 	}
 
 	public List<Word> getWordMatchWords() {
@@ -43,16 +42,8 @@ public class WordsData extends AbstractDataObject {
 		return formMatchWordValues;
 	}
 
-	public int getResultCount() {
-		return resultCount;
-	}
-
-	public boolean isResultsExist() {
-		return resultsExist;
-	}
-
-	public boolean isSingleResult() {
-		return singleResult;
+	public LanguagesDatasets getAvailableLanguagesDatasets() {
+		return availableLanguagesDatasets;
 	}
 
 }

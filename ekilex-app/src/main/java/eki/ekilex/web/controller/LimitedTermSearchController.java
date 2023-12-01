@@ -70,7 +70,7 @@ public class LimitedTermSearchController extends AbstractSearchController {
 
 		String searchUri = searchHelper.composeSearchUri(searchMode, limitedDatasets, simpleSearchFilter, detailSearchFilter, SearchResultMode.MEANING, null);
 
-		return "redirect:" + LIM_TERM_SEARCH_URI + searchUri;
+		return REDIRECT_PREF + LIM_TERM_SEARCH_URI + searchUri;
 	}
 
 	@GetMapping(value = LIM_TERM_SEARCH_URI + "/**")
@@ -140,7 +140,7 @@ public class LimitedTermSearchController extends AbstractSearchController {
 		String firstWordValue = termSearchService.getMeaningFirstWordValue(meaningId, limitedDatasets);
 		String searchUri = searchHelper.composeSearchUriAndAppendId(limitedDatasets, firstWordValue, meaningId);
 
-		return "redirect:" + LIM_TERM_SEARCH_URI + searchUri;
+		return REDIRECT_PREF + LIM_TERM_SEARCH_URI + searchUri;
 	}
 
 	@PostMapping(LIM_TERM_PAGING_URI)
@@ -173,7 +173,6 @@ public class LimitedTermSearchController extends AbstractSearchController {
 			termSearchResult = termSearchService.getTermSearchResult(simpleSearchFilter, limitedDatasets, SearchResultMode.MEANING, null, offset, noLimit);
 		}
 
-		termSearchResult.setOffset(offset);
 		model.addAttribute("termSearchResult", termSearchResult);
 		model.addAttribute("searchUri", searchUri);
 

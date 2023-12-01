@@ -69,21 +69,21 @@ public class WordConversionUtil extends AbstractConversionUtil {
 				if (CollectionUtils.isNotEmpty(primaryMeaningWords)) {
 					Long meaningWordMeaningId = definitionMeaningId;
 					List<String> meaningWordValues = primaryMeaningWords.stream()
-								.filter(meaningWord -> meaningWord.getMeaningId().equals(meaningWordMeaningId))
-								.filter(meaningWord -> StringUtils.equals(wordLang, meaningWord.getLang()))
-								.map(meaningWord -> {
-									if (meaningWord.isPrefixoid()) {
-										return meaningWord.getWord() + "-";
-									} else if (meaningWord.isSuffixoid()) {
-										return "-" + meaningWord.getWord();
-									} else {
-										return meaningWord.getWord();
-									}
-								})
-								.distinct()
-								.collect(Collectors.toList());
-						String meaningWordsWrapup = StringUtils.join(meaningWordValues, ", ");
-						word.setMeaningWordsWrapup(meaningWordsWrapup);
+							.filter(meaningWord -> meaningWord.getMeaningId().equals(meaningWordMeaningId))
+							.filter(meaningWord -> StringUtils.equals(wordLang, meaningWord.getLang()))
+							.map(meaningWord -> {
+								if (meaningWord.isPrefixoid()) {
+									return meaningWord.getWord() + "-";
+								} else if (meaningWord.isSuffixoid()) {
+									return "-" + meaningWord.getWord();
+								} else {
+									return meaningWord.getWord();
+								}
+							})
+							.distinct()
+							.collect(Collectors.toList());
+					String meaningWordsWrapup = StringUtils.join(meaningWordValues, ", ");
+					word.setMeaningWordsWrapup(meaningWordsWrapup);
 				}
 			}
 		}
@@ -118,13 +118,18 @@ public class WordConversionUtil extends AbstractConversionUtil {
 			Word word,
 			WordRelationsTuple wordRelationsTuple,
 			Map<String, Long> langOrderByMap,
-			Complexity lexComplexity,
+			SearchContext searchContext,
 			Locale displayLocale,
 			String displayLang) {
 
 		if (wordRelationsTuple == null) {
 			return;
 		}
+
+		String wordLang = word.getLang();
+		Complexity lexComplexity = searchContext.getLexComplexity();
+		List<String> destinLangs = searchContext.getDestinLangs();
+
 		word.setWordGroups(new ArrayList<>());
 		word.setRelatedWords(new ArrayList<>());
 		word.setPrimaryRelatedWordTypeGroups(new ArrayList<>());
@@ -138,6 +143,7 @@ public class WordConversionUtil extends AbstractConversionUtil {
 		List<TypeWordRelation> wordRelations = wordRelationsTuple.getRelatedWords();
 		Map<String, List<TypeWordRelation>> wordRelationsMap = new HashMap<>();
 		if (CollectionUtils.isNotEmpty(wordRelations)) {
+			wordRelations = filter(wordRelations, wordLang, destinLangs);
 			wordRelations = wordRelations.stream()
 					.filter(relation -> !RelationStatus.DELETED.equals(relation.getRelationStatus()))
 					.filter(relation -> CollectionUtils.isNotEmpty(CollectionUtils.intersection(relation.getLexComplexities(), combinedLexComplexity)))
@@ -180,6 +186,7 @@ public class WordConversionUtil extends AbstractConversionUtil {
 
 		List<TypeWordRelation> allWordGroupMembers = wordRelationsTuple.getWordGroupMembers();
 		if (CollectionUtils.isNotEmpty(allWordGroupMembers)) {
+			allWordGroupMembers = filter(allWordGroupMembers, wordLang, destinLangs);
 			List<String> aspectCodeOrder = aspects.stream().map(Classifier::getCode).collect(Collectors.toList());
 			Map<Long, List<TypeWordRelation>> wordGroupMap = allWordGroupMembers.stream().collect(Collectors.groupingBy(TypeWordRelation::getWordGroupId));
 			List<Long> wordGroupIds = new ArrayList<>(wordGroupMap.keySet());
@@ -252,6 +259,7 @@ public class WordConversionUtil extends AbstractConversionUtil {
 			Classifier wordRelTypeMatch = classifierUtil.reValue(wordRelType, "classifier.word_rel_type.raw.match", displayLocale);
 			wordRelationGroup = new WordRelationGroup();
 			wordRelationGroup.setWordRelType(wordRelTypeMatch);
+			wordRelationGroup.setCollapsible(true);
 			appendRelatedWordTypeGroup(wordRelationGroup, wordRelationGroups, wordRelationMatches, langOrderByMap);
 		} else {
 			wordRelationGroup = new WordRelationGroup();
@@ -294,34 +302,91 @@ public class WordConversionUtil extends AbstractConversionUtil {
 		return allRelatedWordValues;
 	}
 
-	public void composeCommon(Word word, List<LexemeWord> lexemeWords) {
+	public void composeCommon(Word word, List<LexemeWord> lexLexemes, List<LexemeWord> termLexemes) {
 
-		List<Classifier> summarisedPoses = lexemeWords.stream()
-				.filter(lexeme -> CollectionUtils.isNotEmpty(lexeme.getPoses()))
-				.map(LexemeWord::getPoses)
-				.flatMap(List::stream)
-				.distinct()
-				.collect(Collectors.toList());
-		boolean isSinglePos = CollectionUtils.size(summarisedPoses) == 1;
-		for (LexemeWord lexemeWord : lexemeWords) {
-			boolean isShowSection1 = CollectionUtils.isNotEmpty(lexemeWord.getGrammars())
-					|| (CollectionUtils.isNotEmpty(lexemeWord.getPoses()) && !isSinglePos)
-					|| (lexemeWord.getValueState() != null);
-			boolean isShowSection2 = CollectionUtils.isNotEmpty(lexemeWord.getRelatedLexemes())
-					|| CollectionUtils.isNotEmpty(lexemeWord.getRelatedMeanings())
-					|| CollectionUtils.isNotEmpty(lexemeWord.getAdviceNotes())
-					|| CollectionUtils.isNotEmpty(lexemeWord.getLearnerComments())
-					|| CollectionUtils.isNotEmpty(lexemeWord.getLexemeNotes())
-					|| CollectionUtils.isNotEmpty(lexemeWord.getMeaningNotes())
-					|| CollectionUtils.isNotEmpty(lexemeWord.getLexemeSourceLinks());
-			boolean isShowSection3 = CollectionUtils.isNotEmpty(lexemeWord.getGovernments())
-					|| CollectionUtils.isNotEmpty(lexemeWord.getUsages())
-					|| CollectionUtils.isNotEmpty(lexemeWord.getImageFiles());
-			lexemeWord.setShowSection1(isShowSection1);
-			lexemeWord.setShowSection2(isShowSection2);
-			lexemeWord.setShowSection3(isShowSection3);
+		List<Classifier> summarisedPoses = new ArrayList<>();
+
+		if (CollectionUtils.isNotEmpty(lexLexemes)) {
+			List<Classifier> lexSummarisedPoses = lexLexemes.stream()
+					.filter(lexeme -> CollectionUtils.isNotEmpty(lexeme.getPoses()))
+					.map(LexemeWord::getPoses)
+					.flatMap(List::stream)
+					.collect(Collectors.toList());
+			summarisedPoses.addAll(lexSummarisedPoses);
 		}
+
+		if (CollectionUtils.isNotEmpty(termLexemes)) {
+			List<Classifier> termSummarisedPoses = termLexemes.stream()
+					.filter(lexeme -> CollectionUtils.isNotEmpty(lexeme.getPoses()))
+					.map(LexemeWord::getPoses)
+					.flatMap(List::stream)
+					.collect(Collectors.toList());
+			summarisedPoses.addAll(termSummarisedPoses);
+		}
+
+		summarisedPoses = summarisedPoses.stream().distinct().collect(Collectors.toList());
+		List<String> summarisedPosCodes = summarisedPoses.stream().map(Classifier::getCode).collect(Collectors.toList());
+
+		boolean isShowLexPoses = false;
+		boolean isShowTermPoses = false;
+
+		if (CollectionUtils.isNotEmpty(lexLexemes)) {
+
+			if (CollectionUtils.isNotEmpty(summarisedPosCodes)) {
+				isShowLexPoses = lexLexemes.stream()
+						.anyMatch(lexeme -> (lexeme.getPosCodes() == null) || !CollectionUtils.isEqualCollection(lexeme.getPosCodes(), summarisedPosCodes));
+			}
+
+			for (LexemeWord lexemeWord : lexLexemes) {
+
+				boolean isShowPoses = isShowLexPoses && (CollectionUtils.isNotEmpty(lexemeWord.getPoses()));
+				boolean isShowSection1 = isShowPoses
+						|| CollectionUtils.isNotEmpty(lexemeWord.getGrammars())
+						|| (lexemeWord.getValueState() != null);
+				boolean isShowSection2 = CollectionUtils.isNotEmpty(lexemeWord.getRelatedLexemes())
+						|| CollectionUtils.isNotEmpty(lexemeWord.getRelatedMeanings())
+						|| CollectionUtils.isNotEmpty(lexemeWord.getAdviceNotes())
+						|| CollectionUtils.isNotEmpty(lexemeWord.getLearnerComments())
+						|| CollectionUtils.isNotEmpty(lexemeWord.getLexemeNotes())
+						|| CollectionUtils.isNotEmpty(lexemeWord.getMeaningNotes())
+						|| CollectionUtils.isNotEmpty(lexemeWord.getLexemeSourceLinks());
+				boolean isShowSection3 = CollectionUtils.isNotEmpty(lexemeWord.getGovernments())
+						|| CollectionUtils.isNotEmpty(lexemeWord.getUsages())
+						|| CollectionUtils.isNotEmpty(lexemeWord.getImageFiles());
+				lexemeWord.setShowSection1(isShowSection1);
+				lexemeWord.setShowSection2(isShowSection2);
+				lexemeWord.setShowSection3(isShowSection3);
+				lexemeWord.setShowPoses(isShowPoses);
+			}
+		}
+
+		if (CollectionUtils.isNotEmpty(termLexemes)) {
+
+			if (CollectionUtils.isNotEmpty(summarisedPosCodes)) {
+				isShowTermPoses = termLexemes.stream()
+						.anyMatch(lexeme -> (lexeme.getPosCodes() == null) || !CollectionUtils.isEqualCollection(lexeme.getPosCodes(), summarisedPosCodes));
+			}
+
+			for (LexemeWord lexemeWord : termLexemes) {
+
+				String wordValue = lexemeWord.getWord();
+				String wordLang = lexemeWord.getLang();
+				List<LexemeWord> meaningLexemes = lexemeWord.getMeaningLexemes();
+				for (LexemeWord meaningLexeme : meaningLexemes) {
+					String meaningLexemeWordValue = meaningLexeme.getWord();
+					String meaningLexemeWordlang = meaningLexeme.getLang();
+					if (StringUtils.equals(meaningLexemeWordValue, wordValue) && StringUtils.equals(meaningLexemeWordlang, wordLang)) {
+						meaningLexeme.setShowWordDataAsHidden(false);
+						meaningLexeme.setShowPoses(isShowTermPoses);
+					} else {
+						boolean isShowWordDataAsHidden = CollectionUtils.isNotEmpty(meaningLexeme.getPoses()) || meaningLexeme.getGender() != null;
+						meaningLexeme.setShowWordDataAsHidden(isShowWordDataAsHidden);
+						meaningLexeme.setShowPoses(true);
+					}
+				}
+			}
+		}
+
 		word.setSummarisedPoses(summarisedPoses);
-		word.setSinglePos(isSinglePos);
 	}
 }

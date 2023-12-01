@@ -483,40 +483,6 @@ $.fn.updateSourceLink = function() {
 	});
 };
 
-function initRelationDialogLogic(addDlg, idElementName) {
-	addDlg.find('button[type="submit"]').off('click').on('click', function(e) {
-		e.preventDefault();
-		const button = $(this);
-		const content = button.html();
-		button.html(content + ' <i class="fa fa-spinner fa-spin"></i>');
-		const form = button.closest('form');
-		const url = form.attr('action') + '?' + form.serialize();
-		$.get(url).done(function(data) {
-			addDlg.find('[data-name=dialogContent]').replaceWith(data);
-			addDlg.find(`button[data-${idElementName}]`).off('click').on('click', function(e) {
-				e.preventDefault();
-				const button = $(e.target);
-				addDlg.find('[name=id2]').val(button.data(idElementName));
-				const form = button.closest('form');
-				if (checkRequiredFields(form)) {
-					submitForm(form, messages["common.data.update.error"]).always(function() {
-						addDlg.modal('hide');
-					});
-				}
-			});
-		}).fail(function(data) {
-			console.log(data);
-			openAlertDlg(messages["common.error"]);
-		}).always(function() {
-			button.html(content);
-		});
-	});
-
-	addDlg.off('shown.bs.modal').on('shown.bs.modal', function() {
-		addDlg.find('.form-control').first().focus();
-	});
-};
-
 function initMultiselectRelationDlg(dlg) {
 
 	dlg.find('.form-control').val(null);
@@ -764,6 +730,17 @@ function deleteLexemeAndWordAndMeaning() {
 	executeMultiConfirmPostDelete(opName, opCode, lexemeId, successCallbackFunc);
 };
 
+function deleteWordEtymTreeCard() {
+  const opName = "delete";
+  const opCode = "wordEtym";
+  const element = $(this);
+  const lexemeId = element.attr("data-id");
+  const successCallback = element.attr("data-callback");
+  // const successCallbackFunc = createCallback(successCallback, element);
+
+  // executeMultiConfirmPostDelete(opName, opCode, lexemeId, successCallbackFunc);
+};
+
 function deleteLexemeAndRusMeaningLexemes() {
 	const opName = "delete";
 	const opCode = "rus_meaning_lexemes";
@@ -813,6 +790,39 @@ function initClassifierAutocomplete() {
 
 function refreshDetails() {
 	$('#refresh-details').click();
+}
+
+$.fn.refreshSearchResults = function() {
+	const btn = $(this);
+	btn.on('click', function(e) {
+		e.preventDefault();
+		openWaitDlg();
+		const form = btn.closest('form');
+		$.ajax({
+			url: form.attr('action'),
+			data: form.serialize(),
+			method: 'POST',
+		}).done(function(data) {
+			closeWaitDlg();
+			$('#results_div').html(data);
+			highlightActiveSearchResults();
+			initClassifierAutocomplete();
+			$wpm.bindObjects();
+		}).fail(function(data) {
+			closeWaitDlg();
+			console.log(data);
+			openAlertDlg(messages["common.error"]);
+		});
+	});
+}
+
+function highlightActiveSearchResults() {
+	if (QueryParams.get('id')) {
+		const idList = QueryParams.get('id').split(',');
+		idList.forEach(id => {
+			$(`#results button[data-id=${id}]`).parent().addClass('active');
+		});
+	}
 }
 
 function validateAndSubmitJoinForm(validateJoinUrl, joinForm, failMessage) {
@@ -1175,6 +1185,10 @@ function getBreadcrumbsData(detailsDiv, word) {
 	const crumbs = crumbsData ? JSON.parse(crumbsData) : [];
 	crumbs.push(word);
 	return crumbs;
+}
+
+function getCurrentPageNum() {
+	return $('#pageNum').val();
 }
 
 // Scroll to result when searching by id in lex view

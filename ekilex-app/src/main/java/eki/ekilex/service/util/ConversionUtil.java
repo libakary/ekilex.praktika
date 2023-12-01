@@ -208,7 +208,6 @@ public class ConversionUtil implements GlobalConstant {
 				usage.setTypeValue(tuple.getUsageTypeValue());
 				usage.setTranslations(new ArrayList<>());
 				usage.setDefinitions(new ArrayList<>());
-				usage.setAuthors(new ArrayList<>());
 				usage.setSourceLinks(new ArrayList<>());
 				usage.setPublic(tuple.isUsagePublic());
 				usageMap.put(usageId, usage);
@@ -225,13 +224,7 @@ public class ConversionUtil implements GlobalConstant {
 					usageSource.setName(tuple.getUsageSourceLinkName());
 					usageSource.setValue(tuple.getUsageSourceLinkValue());
 					usageSourceMap.put(usageSourceLinkId, usageSource);
-					if (ReferenceType.AUTHOR.equals(tuple.getUsageSourceLinkType())) {
-						usage.getAuthors().add(usageSource);
-					} else if (ReferenceType.TRANSLATOR.equals(tuple.getUsageSourceLinkType())) {
-						usage.getAuthors().add(usageSource);
-					} else {
-						usage.getSourceLinks().add(usageSource);
-					}
+					usage.getSourceLinks().add(usageSource);
 				}
 			}
 			if (usageTranslationId != null) {
@@ -1029,6 +1022,27 @@ public class ConversionUtil implements GlobalConstant {
 		}
 	}
 
+	public Source composeSource(Source source, List<SourcePropertyTuple> sourcePropertyTuples) {
+
+		List<SourceProperty> sourceProperties = new ArrayList<>();
+		for (SourcePropertyTuple tuple : sourcePropertyTuples) {
+
+			Long sourcePropertyId = tuple.getSourcePropertyId();
+			FreeformType sourcePropertyType = tuple.getSourcePropertyType();
+			String sourcePropertyValueText = tuple.getSourcePropertyValueText();
+			Timestamp sourcePropertyValueDate = tuple.getSourcePropertyValueDate();
+
+			SourceProperty sourceProperty = new SourceProperty();
+			sourceProperty.setId(sourcePropertyId);
+			sourceProperty.setType(sourcePropertyType);
+			sourceProperty.setValueText(sourcePropertyValueText);
+			sourceProperty.setValueDate(sourcePropertyValueDate);
+			sourceProperties.add(sourceProperty);
+		}
+		source.setSourceProperties(sourceProperties);
+		return source;
+	}
+
 	public List<Source> composeSources(List<SourcePropertyTuple> sourcePropertyTuples) {
 
 		List<Source> sources = new ArrayList<>();
@@ -1048,6 +1062,11 @@ public class ConversionUtil implements GlobalConstant {
 				source = new Source();
 				source.setId(sourceId);
 				source.setType(tuple.getSourceType());
+				source.setName(tuple.getSourceName());
+				source.setValue(tuple.getSourceValue());
+				source.setValuePrese(tuple.getSourceValuePrese());
+				source.setComment(tuple.getSourceComment());
+				source.setPublic(tuple.isSourcePublic());
 				source.setSourceProperties(new ArrayList<>());
 				sources.add(source);
 				sourceMap.put(sourceId, source);
@@ -1068,7 +1087,8 @@ public class ConversionUtil implements GlobalConstant {
 					.filter(sourceProperty -> FreeformType.SOURCE_NAME.equals(sourceProperty.getType()))
 					.map(SourceProperty::getValueText)
 					.collect(Collectors.toList());
-			source.setSourceNames(sourceNames);
+			// This is used in lex person search where first source name is displayed
+			source.setNameTypeSourceProperties(sourceNames);
 		});
 		return sources;
 	}

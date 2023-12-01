@@ -67,39 +67,6 @@ function deleteSourceProperty() {
 	});
 };
 
-function initEditSourceTypeSelectDlg(selectDlg) {
-	const selectControl = selectDlg.find('select');
-	configureSelectDlg(selectControl, selectDlg);
-
-	selectControl.off('click').on('click', function (e) {
-		submitAndUpdateSourceType(selectDlg)
-	});
-	selectControl.off('keydown').on('keydown', function (e) {
-		if (e.key === "Enter") {
-			submitAndUpdateSourceType(selectDlg)
-		}
-	});
-};
-
-function submitAndUpdateSourceType(selectDlg) {
-	const form = selectDlg.find('form');
-	const sourceId = form.find('[name=sourceId]').val();
-	$.ajax({
-		url: form.attr('action'),
-		data: form.serialize(),
-		method: 'POST',
-	}).done(function (data) {
-		selectDlg.modal('hide');
-		$(`#sourceSearchResult_${sourceId}`).replaceWith(data);
-		initDeleteConfirmations();
-		// Reattach plugins after change
-		$wpm.bindObjects();
-	}).fail(function (data) {
-		console.log(data);
-		openAlertDlg(messages["common.error"]);
-	});
-};
-
 $.fn.addSourceAndSourceLinkPlugin = function() {
 	const main = $(this);
 	main.on('click', function(e) {
@@ -238,6 +205,11 @@ $.fn.addSourceSubmitPlugin = function() {
 		const obj = $(this);
 		obj.on('click', function() {
 			const addSourceForm = obj.closest('form');
+			const editFld = addSourceForm.find('[data-id="editFld"]');
+			const valueInput = addSourceForm.find('[name=valuePrese]');
+			let editFldValue = editFld.val();
+			editFldValue = cleanEkiEditorValue(editFldValue);
+			valueInput.val(editFldValue);
 			if (viewType === 'source') {
 				addSource(addSourceForm);
 			} else {

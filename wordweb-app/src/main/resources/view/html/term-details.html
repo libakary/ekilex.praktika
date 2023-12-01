@@ -108,12 +108,11 @@
                                 th:utext="${definition.valuePrese}"></span>
                           <th:block th:if="${not #lists.isEmpty(definition.sourceLinks)}">
                             <span class="definition-sources ">
-                              <!--<span th:text="#{label.sources}">Allikad:</span>:-->
                               <th:block th:each="sourceLink,sourceLinkIter : ${definition.sourceLinks}">
                                 <button type="button" class="source-link btn btn-link-dark pt-0 px-0 pb-1" data-toggle="popover" data-html="true"
                                         th:title="#{label.source}" th:data-content="${#strings.listJoin(sourceLink.sourceProps, ', ')}">
                                   <span th:utext="${sourceLink.value}"></span>
-                                  <span th:utext="${' - ' + sourceLink.name  }" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
+                                  <span th:utext="| - ${sourceLink.name}|" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
                                 </button>
                                 <span th:unless="${sourceLinkIter.last}">, </span>
                               </th:block>
@@ -128,7 +127,7 @@
                                     <button type="button" class="source-link btn btn-link-dark pt-0 px-0 pb-1" data-toggle="popover" data-html="true"
                                             th:title="#{label.source}" th:data-content="${#strings.listJoin(sourceLink.sourceProps, ', ')}">
                                       <span th:utext="${sourceLink.value}"></span>
-                                      <span th:utext="${' - ' + sourceLink.name  }" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
+                                      <span th:utext="| - ${sourceLink.name}|" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
                                     </button>
                                     <span th:unless="${sourceLinkIter.last}">, </span>
                                   </th:block>
@@ -196,6 +195,7 @@
                                     <button type="button" class="source-link btn btn-link-dark p-0 pt-0 px-0 pb-1" data-toggle="popover" data-html="true"
                                             th:title="#{label.source}" th:data-content="${#strings.listJoin(sourceLink.sourceProps, ', ')}">
                                       <span th:utext="${sourceLink.value}"></span>
+                                      <span th:utext="| - ${sourceLink.name}|" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
                                     </button>
                                   </span>
                               </span>
@@ -221,6 +221,7 @@
                       <button type="button" class="source-link btn btn-link-dark pt-0 px-0 pb-1" data-toggle="popover" data-html="true"
                               th:title="#{label.source}" th:data-content="${#strings.listJoin(sourceLink.sourceProps, ', ')}">
                         <span th:utext="${sourceLink.value}"></span>
+                        <span th:utext="| - ${sourceLink.name}|" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
                       </button>
                     </div>
                   </th:block>
@@ -279,6 +280,12 @@
                             <span th:utext="${viewUtil.getWordValueMarkup(meaningLexeme)}">tee</span>
                           </a>
                           <span class="text-small" th:if="${meaningLexeme.valueState != null}" th:text="${meaningLexeme.valueState.value}"></span>
+                          <th:block th:if="${meaningLexeme.showWordDataAsHidden}">
+                            <button type="button" class="btn btn-icon btn-sm" data-toggle="tooltip" data-html="true"
+                                    th:title="${viewUtil.getPosesAndGenderTooltipHtml(meaningLexeme.poses, meaningLexeme.gender)}">
+                              <i class="fas fa-info-circle"></i>
+                            </button>
+                          </th:block>
                         </div>
                       </div>
                       <div class="row text-small" th:if="${meaningLexeme.reliability != null}">
@@ -294,12 +301,11 @@
                       <div class="row" th:if="${not #lists.isEmpty(meaningLexeme.lexemeSourceLinks)}">
                         <div class="col">
                           <span class="definition-sources">
-                            <!--<span th:text="#{label.sources}">Allikad:</span>: -->
                             <th:block th:each="sourceLink,sourceLinkIter : ${meaningLexeme.lexemeSourceLinks}">
                               <button class="source-link btn btn-link-dark pt-0 px-0 pb-1" data-toggle="popover" data-html="true"
                                       th:title="#{label.source}" th:data-content="${#strings.listJoin(sourceLink.sourceProps, ', ')}">
                                 <span th:utext="${sourceLink.value}"></span>
-                                <span th:utext="${' - ' + sourceLink.name}" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
+                                <span th:utext="| - ${sourceLink.name}|" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
                               </button>
                               <span th:unless="${sourceLinkIter.last}">,</span>
                             </th:block>
@@ -318,19 +324,19 @@
                           </span>
                         </div>
                       </div>
-                      <div class="row" th:if="${meaningLexeme.gender != null}">
+                      <div class="row" th:if="${meaningLexeme.gender != null && !meaningLexeme.showWordDataAsHidden}">
                         <div class="col">
                           <span th:text="${meaningLexeme.gender.value}"></span>
                         </div>
                       </div>
-                      <div class="row" th:if="${not #lists.isEmpty(meaningLexeme.poses)}">
+                      <div class="row" th:if="${not #lists.isEmpty(meaningLexeme.poses) && meaningLexeme.showPoses && !meaningLexeme.showWordDataAsHidden}">
                         <div class="col">
                           <span class="tag" th:each="pos : ${meaningLexeme.poses}" th:text="${pos.value}"></span>
                         </div>
                       </div>
                       <div class="row" th:if="${not #lists.isEmpty(meaningLexeme.registers)}">
                         <div class="col">
-                          <span class="domain register mr-1 mb-1" th:each="register,registerIter : ${meaningLexeme.registers}" th:text="${register.value + (registerIter.last ? '' : ', ')}"></span>                          
+                          <span class="domain register mr-1 mb-1" th:each="register,registerIter : ${meaningLexeme.registers}" th:text="${register.value + (registerIter.last ? '' : ', ')}"></span>
                         </div>
                       </div>
                       <div class="row" th:if="${not #lists.isEmpty(meaningLexeme.wordTypes)}">
@@ -358,11 +364,11 @@
                                   </span>
                                   <th:block th:if="${not #lists.isEmpty(usage.sourceLinks)}">
                                     <span class="example-text" th:each="sourceLink : ${usage.sourceLinks}">
-                                      <span th:if="${sourceLink.translator}" th:text="#{reference.type.translator}">tõlkinud</span>
                                       <span class="definition-sources">
                                         <button type="button" class="source-link btn btn-link-dark pt-0 px-0 pb-1" data-toggle="popover" data-html="true"
                                                 th:title="#{label.source}" th:data-content="${#strings.listJoin(sourceLink.sourceProps, ', ')}">
                                           <span th:utext="${sourceLink.value}"></span>
+                                          <span th:utext="| - ${sourceLink.name}|" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
                                         </button>
                                       </span>
                                     </span>
@@ -385,10 +391,10 @@
                                       </span>
                                       <th:block th:if="${not #lists.isEmpty(usage.sourceLinks)}">
                                         <span class="example-text" th:each="sourceLink : ${usage.sourceLinks}">
-                                          <span th:if="${sourceLink.translator}" th:text="#{reference.type.translator}">tõlkinud</span>
                                           <button type="button" class="source-link btn btn-link-dark pt-0 px-0 pb-1" data-toggle="popover" data-html="true"
                                                   th:title="#{label.source}" th:data-content="${#strings.listJoin(sourceLink.sourceProps, ', ')}">
                                             <span th:utext="${sourceLink.value}"></span>
+                                            <span th:utext="| - ${sourceLink.name}|" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
                                           </button>
                                         </span>
                                       </th:block>
@@ -405,7 +411,7 @@
                                   data-toggle="collapse"
                                   aria-expanded="false"
                                   th:aria-controls="${'#lexeme-usages-more-panel-' + meaningLexeme.lexemeId}"
-                                  th:data-target="${'#lexeme-usages-more-panel-' + meaningLexeme.lexemeId}"
+                                  th:data-target="|#lexeme-usages-more-panel-${meaningLexeme.lexemeId}|"
                                   th:if="${meaningLexeme.moreUsages}">
                               <span class="btn-content see-more-content" data-tooltip="tooltip" th:title="#{button.see.more}">
                                 <i class="fa fa-ellipsis-h" aria-hidden="true"></i>
@@ -430,10 +436,10 @@
                               <span class="lang-code lang-code-sm mr-2 align-self-start"
                                     th:with="langData=${viewUtil.getLangData(noteEntry.key)}"
                                     th:text="${langData.codeIso2}" th:title="${langData.label}" data-toggle="tooltip"></span>
-                              <div class="d-flex flex-column">
+                              <div class="d-flex flex-column good-to-know-info">
                                 <th:block th:each="note : ${noteEntry.value}"
                                           th:with="isCollapsable=${not #strings.isEmpty(note.valueCut)}">
-                                  <div th:id="${'note-entry-text-' + note.freeformId}">
+                                  <div th:id="|note-entry-text-${note.freeformId}|">
                                     <th:block th:if="${isCollapsable}">
                                       <div class="note-value collapse-text">
                                         <span class="small-text-addition" th:utext="${note.valueCut}"></span>
@@ -445,13 +451,13 @@
                                         <span class="large-text-addition" th:utext="${note.value}"></span>
                                       </div>
                                       <button
-                                          th:id="${'note-entry-show-more-btn-' + note.freeformId}"
+                                          th:id="|note-entry-show-more-btn-${note.freeformId}|"
                                           class="btn btn-link-muted btn-sm btn-collapse text-nowrap d-inline-flex align-items-end pb-0 ml-n2"
                                           type="button"
                                           data-toggle="collapse-text"
-                                          th:data-target="${'#note-entry-text-' + note.freeformId + ' .collapse-text'}"
+                                          th:data-target="|#note-entry-text-${note.freeformId} .collapse-text|"
                                           aria-expanded="false"
-                                          th:aria-controls="${'#note-entry-text-' + note.freeformId + ' .collapse-text'}">
+                                          th:aria-controls="|#note-entry-text-${note.freeformId} .collapse-text|">
                                         <span class="btn-content see-more-content" data-tooltip="tooltip" th:title="#{button.see.more}">
                                           <i class="fa fa-ellipsis-h" aria-hidden="true"></i>
                                         </span>
@@ -464,12 +470,11 @@
                                     <span th:unless="${isCollapsable}" th:utext="${note.value}"></span>
                                     <th:block th:if="${not #lists.isEmpty(note.sourceLinks)}">
                                       <span class="definition-sources">
-                                        <!--<span th:text="#{label.sources}">Allikad:</span>:-->
                                         <th:block th:each="sourceLink,sourceLinkIter : ${note.sourceLinks}">
                                           <button type="button" class="source-link btn btn-link-dark pt-0 px-0 pb-1" data-toggle="popover" data-html="true"
                                                   th:title="#{label.source}" th:data-content="${#strings.listJoin(sourceLink.sourceProps, ', ')}">
-                                            <span th:utext="${sourceLink.value}"></span>    
-                                            <span th:utext="${' - ' + sourceLink.name }" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
+                                            <span th:utext="${sourceLink.value}"></span>
+                                            <span th:utext="| - ${sourceLink.name}|" th:unless="${#strings.isEmpty(sourceLink.name)}"></span>
                                           </button>
                                           <span th:unless="${sourceLinkIter.last}">, </span>
                                         </th:block>

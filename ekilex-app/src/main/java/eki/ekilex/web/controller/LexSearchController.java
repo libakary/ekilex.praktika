@@ -71,7 +71,7 @@ public class LexSearchController extends AbstractPrivateSearchController {
 			Model model) throws Exception {
 
 		if (CollectionUtils.isEmpty(selectedDatasets)) {
-			return "redirect:" + LEX_SEARCH_URI;
+			return REDIRECT_PREF + LEX_SEARCH_URI;
 		}
 
 		final SearchResultMode resultMode = SearchResultMode.WORD;
@@ -88,7 +88,7 @@ public class LexSearchController extends AbstractPrivateSearchController {
 		}
 
 		String searchUri = searchHelper.composeSearchUri(searchMode, selectedDatasets, simpleSearchFilter, detailSearchFilter, resultMode, resultLang);
-		return "redirect:" + LEX_SEARCH_URI + searchUri;
+		return REDIRECT_PREF + LEX_SEARCH_URI + searchUri;
 	}
 
 	@GetMapping(value = LEX_SEARCH_URI + "/**")
@@ -122,14 +122,17 @@ public class LexSearchController extends AbstractPrivateSearchController {
 
 		userProfileService.updateUserPreferredDatasets(selectedDatasets, userId);
 
+		Integer pageNum = getPageNum(request);
+		int offset = calculateOffset(pageNum);
+
 		WordsResult wordsResult;
 		Long selectedMeaningId = null;
 		if (StringUtils.equals(SEARCH_MODE_DETAIL, searchMode)) {
 			searchHelper.addValidationMessages(detailSearchFilter);
-			wordsResult = lexSearchService.getWords(detailSearchFilter, selectedDatasets, userRole, tagNames, DEFAULT_OFFSET, DEFAULT_MAX_RESULTS_LIMIT, noLimit);
+			wordsResult = lexSearchService.getWords(detailSearchFilter, selectedDatasets, userRole, tagNames, offset, DEFAULT_MAX_RESULTS_LIMIT, noLimit);
 			selectedMeaningId = searchHelper.getMeaningIdSearchMeaningId(detailSearchFilter);
 		} else {
-			wordsResult = lexSearchService.getWords(simpleSearchFilter, selectedDatasets, userRole, tagNames, DEFAULT_OFFSET, DEFAULT_MAX_RESULTS_LIMIT, noLimit);
+			wordsResult = lexSearchService.getWords(simpleSearchFilter, selectedDatasets, userRole, tagNames, offset, DEFAULT_MAX_RESULTS_LIMIT, noLimit);
 		}
 		boolean noResults = wordsResult.getTotalCount() == 0;
 		model.addAttribute("searchMode", searchMode);
@@ -178,7 +181,6 @@ public class LexSearchController extends AbstractPrivateSearchController {
 			wordsResult = lexSearchService.getWords(simpleSearchFilter, selectedDatasets, userRole, tagNames, offset, DEFAULT_MAX_RESULTS_LIMIT, noLimit);
 		}
 
-		wordsResult.setOffset(offset);
 		model.addAttribute("wordsResult", wordsResult);
 		model.addAttribute("searchUri", searchUri);
 		return LEX_COMPONENTS_PAGE + PAGE_FRAGMENT_ELEM + "search_result";
@@ -201,18 +203,6 @@ public class LexSearchController extends AbstractPrivateSearchController {
 		model.addAttribute("totalCount", result.getTotalCount());
 
 		return COMPONENTS_PAGE + PAGE_FRAGMENT_ELEM + "word_search_result";
-	}
-
-	@GetMapping("/personsearch")
-	public String searchPersons(@RequestParam String searchFilter, Model model) {
-
-		logger.debug("person search {}", searchFilter);
-
-		searchFilter = valueUtil.trimAndCleanAndRemoveHtmlAndLimit(searchFilter);
-		List<Source> sources = sourceService.getSources(searchFilter, SourceType.PERSON);
-		model.addAttribute("sourcesFoundBySearch", sources);
-
-		return COMPONENTS_PAGE + PAGE_FRAGMENT_ELEM + "source_search_result";
 	}
 
 	@GetMapping(value = {

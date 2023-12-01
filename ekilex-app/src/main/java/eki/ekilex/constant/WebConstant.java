@@ -38,6 +38,8 @@ public interface WebConstant {
 
 	String SEARCH_URI = "/search";
 
+	String DOWNLOAD_URI = "/download";
+
 	String MAINTENANCE_URI = "/maintenance";
 
 	String VIEW_RESOURCES_URI = "/view";
@@ -172,6 +174,8 @@ public interface WebConstant {
 
 	String ACTIVATE_PAGE_URI = "/activate";
 
+	String PROTO_URI = "/proto";
+
 	String PASSWORD_RECOVERY_URI = "/passwordrecovery";
 
 	String PASSWORD_RECOVERY_PAGE = "passwordrecovery";
@@ -189,6 +193,8 @@ public interface WebConstant {
 	String ERROR_PAGE = "error";
 
 	String SELECT_URI = "/select";
+
+	String INIT_URI = "/init";
 
 	String LEX_CREATE_WORD_URI = "/lex_create_word";
 
@@ -413,4 +419,8 @@ public interface WebConstant {
 	String USER_ROLE_DATA_KEY = "userRoleData";
 
 	String REQUEST_START_TIME_KEY = "request_start_time";
+
+	// request parameters
+
+	String REQUEST_PARAM_PAGE = "p";
 }

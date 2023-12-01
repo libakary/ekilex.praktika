@@ -625,7 +625,12 @@ alter sequence freeform_id_seq restart with 10000;
 create table source
 (
   id bigserial primary key,
-  type varchar(100) not null
+  type varchar(100) not null,
+  name text null,
+  value text null,
+  value_prese text null,
+  comment text null,
+  is_public boolean not null default true
 );
 alter sequence source_id_seq restart with 10000;
 
@@ -1196,7 +1201,7 @@ create table activity_log
   id bigserial primary key,
   event_by text not null,
   event_on timestamp not null default statement_timestamp(),
-  dataset_code varchar(10) references dataset(code) null,
+  dataset_code varchar(10) null,
   funct_name text not null,
   owner_id bigint not null,
   owner_name text not null,
@@ -1342,7 +1347,7 @@ create index form_display_form_idx on form(display_form);
 create index form_display_level_idx on form(display_level);
 create index paradigm_word_id_idx on paradigm(word_id);
 create index paradigm_form_paradigm_id_idx on paradigm_form(paradigm_id);
-create index paradigm_form_form_id_idx on paradigm_form(id);
+create index paradigm_form_form_id_idx on paradigm_form(form_id);
 create index word_homonym_nr_idx on word(homonym_nr);
 create index word_lang_idx on word(lang);
 create index word_value_idx on word(value);
@@ -1407,6 +1412,8 @@ create index freeform_lang_idx on freeform(lang);
 create index freeform_complexity_idx on freeform(complexity);
 create index freeform_is_public_idx on freeform(is_public);
 create index source_type_idx on source(type);
+create index source_name_idx on source(name);
+create index source_name_lower_idx on source(lower(name));
 create index source_freeform_source_id_idx on source_freeform(source_id);
 create index source_freeform_freeform_id_idx on source_freeform(freeform_id);
 create index meaning_freeform_meaning_id_idx on meaning_freeform(meaning_id);

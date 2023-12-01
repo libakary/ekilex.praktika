@@ -56,9 +56,17 @@ public interface GlobalConstant {
 
 	String WORD_TYPE_CODE_SYMBOL = "th";
 
+	String WORD_TYPE_CODE_INCORRECT_WORD_FORM = "viga";
+
 	String[] WORD_TYPE_CODES_ABBREVIATION = new String[] {"l", "th"};
 
 	String[] WORD_TYPE_CODES_FOREIGN = new String[] {"z", "lz"};
+
+	String LEXEME_POS_CODE_VERB = "v";
+
+	String[] GOVERNMENT_VALUES_MULTIPLE_CASE = new String[] {"keda", "mida", "keda/mida", "mida/keda"};
+
+	String[] GOVERNMENT_VALUES_PARTITIVE_CASE = new String[] {"keda*", "mida*", "keda/mida*", "mida/keda*"};
 
 	String WORD_REL_TYPE_CODE_ASCPECTS = "ASPECTS";
 
@@ -92,9 +100,9 @@ public interface GlobalConstant {
 
 	String FORCE_QUERY_LOG = "'force query log'";
 
-	String QUERY_MULTIPLE_CHARACTERS_SYM = "*";
+	String SEARCH_MASK_CHARS = "*";
 
-	String QUERY_SINGLE_CHARACTER_SYM = "?";
+	String SEARCH_MASK_CHAR = "?";
 
 	String STAT_API_KEY_HEADER_NAME = "stat-api-key";
 

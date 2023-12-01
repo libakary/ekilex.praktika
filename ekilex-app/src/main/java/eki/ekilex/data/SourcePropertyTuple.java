@@ -14,6 +14,16 @@ public class SourcePropertyTuple extends AbstractDataObject {
 
 	private SourceType sourceType;
 
+	private String sourceName;
+
+	private String sourceValue;
+
+	private String sourceValuePrese;
+
+	private String sourceComment;
+
+	private boolean isSourcePublic;
+
 	private Long sourcePropertyId;
 
 	private FreeformType sourcePropertyType;
@@ -36,8 +46,48 @@ public class SourcePropertyTuple extends AbstractDataObject {
 		return sourceType;
 	}
 
-	public void setSourceType(SourceType type) {
-		this.sourceType = type;
+	public void setSourceType(SourceType sourceType) {
+		this.sourceType = sourceType;
+	}
+
+	public String getSourceName() {
+		return sourceName;
+	}
+
+	public void setSourceName(String sourceName) {
+		this.sourceName = sourceName;
+	}
+
+	public String getSourceValue() {
+		return sourceValue;
+	}
+
+	public void setSourceValue(String sourceValue) {
+		this.sourceValue = sourceValue;
+	}
+
+	public String getSourceValuePrese() {
+		return sourceValuePrese;
+	}
+
+	public void setSourceValuePrese(String sourceValuePrese) {
+		this.sourceValuePrese = sourceValuePrese;
+	}
+
+	public String getSourceComment() {
+		return sourceComment;
+	}
+
+	public void setSourceComment(String sourceComment) {
+		this.sourceComment = sourceComment;
+	}
+
+	public boolean isSourcePublic() {
+		return isSourcePublic;
+	}
+
+	public void setSourcePublic(boolean sourcePublic) {
+		isSourcePublic = sourcePublic;
 	}
 
 	public Long getSourcePropertyId() {
@@ -79,5 +129,4 @@ public class SourcePropertyTuple extends AbstractDataObject {
 	public void setSourcePropertyMatch(boolean sourcePropertyMatch) {
 		this.sourcePropertyMatch = sourcePropertyMatch;
 	}
-
 }

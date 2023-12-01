@@ -71,7 +71,24 @@ public class SourceDbService implements GlobalConstant, ActivityFunct {
 	@Autowired
 	private DSLContext create;
 
-	public List<SourcePropertyTuple> getSource(Long sourceId) {
+	public eki.ekilex.data.Source getSource(Long sourceId) {
+
+		Source s = SOURCE.as("s");
+		return create
+				.select(
+						s.ID,
+						s.TYPE,
+						s.NAME,
+						s.VALUE,
+						s.VALUE_PRESE,
+						s.COMMENT,
+						s.IS_PUBLIC)
+				.from(s)
+				.where(s.ID.eq(sourceId))
+				.fetchOneInto(eki.ekilex.data.Source.class);
+	}
+
+	public List<SourcePropertyTuple> getSourcePropertyTuples(Long sourceId) {
 
 		Source s = SOURCE.as("s");
 		SourceFreeform spff = SOURCE_FREEFORM.as("spff");
@@ -79,16 +96,25 @@ public class SourceDbService implements GlobalConstant, ActivityFunct {
 		Condition where = s.ID.equal(sourceId);
 		Field<Boolean> spmf = DSL.field(DSL.val(Boolean.FALSE));
 
-		return getSources(s, spff, sp, spmf, where);
+		return getSourcePropertyTuples(s, spff, sp, spmf, where);
 	}
 
-	public List<SourcePropertyTuple> getSources(String searchFilterWithMetaCharacters, SourceType sourceType) {
-		return getSources(searchFilterWithMetaCharacters, sourceType, null);
+	public List<eki.ekilex.data.Source> getSources(String searchFilter) {
+
+		searchFilter = '%' + StringUtils.lowerCase(searchFilter) + '%';
+		String maskedSearchFilter = searchFilter.replace(SEARCH_MASK_CHARS, "%").replace(SEARCH_MASK_CHAR, "_");
+		Field<String> filterField = DSL.lower(maskedSearchFilter);
+
+		Source s = SOURCE.as("s");
+
+		Condition where = DSL.or(DSL.lower(s.NAME).like(filterField), DSL.lower(s.VALUE).like(filterField));
+
+		return getSources(s, where);
 	}
 
-	public List<SourcePropertyTuple> getSources(String searchFilter, SourceType sourceType, Long sourceIdToExclude) {
+	public List<SourcePropertyTuple> getSourcePropertyTuples(String searchFilter, SourceType sourceType, Long sourceIdToExclude) {
 
-		String maskedSearchFilter = searchFilter.replace(QUERY_MULTIPLE_CHARACTERS_SYM, "%").replace(QUERY_SINGLE_CHARACTER_SYM, "_");
+		String maskedSearchFilter = searchFilter.replace(SEARCH_MASK_CHARS, "%").replace(SEARCH_MASK_CHAR, "_");
 		Field<String> filterField = DSL.lower(maskedSearchFilter);
 
 		Source s = SOURCE.as("s");
@@ -110,10 +136,10 @@ public class SourceDbService implements GlobalConstant, ActivityFunct {
 		}
 		Condition where = DSL.exists(DSL.select(spcff.ID).from(spcff, spc).where(where1));
 
-		return getSources(s, spff, sp, spmf, where);
+		return getSourcePropertyTuples(s, spff, sp, spmf, where);
 	}
 
-	private List<SourcePropertyTuple> getSources(Source s, SourceFreeform spff, Freeform sp, Field<Boolean> spmf, Condition where) {
+	private List<SourcePropertyTuple> getSourcePropertyTuples(Source s, SourceFreeform spff, Freeform sp, Field<Boolean> spmf, Condition where) {
 
 		Field<Boolean> sptnf = DSL.field(sp.TYPE.eq(FreeformType.SOURCE_NAME.name()));
 
@@ -121,6 +147,11 @@ public class SourceDbService implements GlobalConstant, ActivityFunct {
 				.select(
 						s.ID.as("source_id"),
 						s.TYPE.as("source_type"),
+						s.NAME.as("source_name"),
+						s.VALUE.as("source_value"),
+						s.VALUE_PRESE.as("source_value_prese"),
+						s.COMMENT.as("source_comment"),
+						s.IS_PUBLIC.as("is_source_public"),
 						sp.ID.as("source_property_id"),
 						sp.TYPE.as("source_property_type"),
 						sp.VALUE_TEXT.as("source_property_value_text"),
@@ -138,34 +169,34 @@ public class SourceDbService implements GlobalConstant, ActivityFunct {
 				.fetchInto(SourcePropertyTuple.class);
 	}
 
-	public List<SourcePropertyTuple> getSources(SearchFilter searchFilter) throws Exception {
-
-		List<SearchCriterionGroup> searchCriteriaGroups = searchFilter.getCriteriaGroups();
+	public List<eki.ekilex.data.Source> getSources(SearchFilter searchFilter) throws Exception {
 
 		Source s = SOURCE.as("s");
-		SourceFreeform spff = SOURCE_FREEFORM.as("spff");
-		Freeform sp = FREEFORM.as("sp");
-		SourceFreeform spcff = SOURCE_FREEFORM.as("spcff");
-		Freeform spc = FREEFORM.as("spc");
-		Field<Boolean> spmf = DSL.field(DSL.falseCondition());
-
 		Condition where = DSL.noCondition();
 
+		List<SearchCriterionGroup> searchCriteriaGroups = searchFilter.getCriteriaGroups();
 		for (SearchCriterionGroup searchCriterionGroup : searchCriteriaGroups) {
 			List<SearchCriterion> searchCriteria = searchCriterionGroup.getSearchCriteria();
 			if (CollectionUtils.isEmpty(searchCriteria)) {
 				continue;
 			}
+
 			SearchEntity searchEntity = searchCriterionGroup.getEntity();
 			if (SearchEntity.SOURCE.equals(searchEntity)) {
+				boolean containsSearchKeys = searchFilterHelper.containsSearchKeys(searchCriteria, SearchKey.SOURCE_NAME, SearchKey.SOURCE_VALUE);
 
-				boolean containsSearchKeys;
-
-				containsSearchKeys = searchFilterHelper.containsSearchKeys(searchCriteria, SearchKey.VALUE);
 				if (containsSearchKeys) {
-					Condition where1 = spcff.SOURCE_ID.eq(s.ID).and(spcff.FREEFORM_ID.eq(spc.ID));
-					where1 = searchFilterHelper.applyValueFilters(SearchKey.VALUE, searchCriteria, spc.VALUE_TEXT, where1, true);
-					where = where.andExists(DSL.select(spcff.ID).from(spcff, spc).where(where1));
+					List<SearchCriterion> filteredByNameCriteria = searchFilterHelper.filterCriteriaBySearchKey(searchCriteria, SearchKey.SOURCE_NAME);
+					List<SearchCriterion> filteredByValueCriteria = searchFilterHelper.filterCriteriaBySearchKey(searchCriteria, SearchKey.SOURCE_VALUE);
+
+					for (SearchCriterion criterion : filteredByNameCriteria) {
+						String searchValueStr = criterion.getSearchValue().toString();
+						where = searchFilterHelper.applyValueFilter(searchValueStr, criterion.isNot(), criterion.getSearchOperand(), s.NAME, where, true);
+					}
+					for (SearchCriterion criterion : filteredByValueCriteria) {
+						String searchValueStr = criterion.getSearchValue().toString();
+						where = searchFilterHelper.applyValueFilter(searchValueStr, criterion.isNot(), criterion.getSearchOperand(), s.VALUE, where, true);
+					}
 				}
 
 				where = applySourceLinkDatasetFilters(searchCriteria, s.ID, where);
@@ -173,7 +204,7 @@ public class SourceDbService implements GlobalConstant, ActivityFunct {
 			}
 		}
 
-		return getSources(s, spff, sp, spmf, where);
+		return getSources(s, where);
 	}
 
 	private Condition applySourceLinkDatasetFilters(List<SearchCriterion> searchCriteria, Field<Long> sourceIdField, Condition where) {
@@ -316,41 +347,30 @@ public class SourceDbService implements GlobalConstant, ActivityFunct {
 				.orElse(null);
 	}
 
-	public String getSourceNameValue(Long sourceId) {
-
-		return create
-				.select(FREEFORM.VALUE_TEXT)
-				.from(SOURCE_FREEFORM, FREEFORM)
-				.where(SOURCE_FREEFORM.SOURCE_ID.eq(sourceId)
-						.and(FREEFORM.ID.eq(SOURCE_FREEFORM.FREEFORM_ID))
-						.and(FREEFORM.TYPE.eq(FreeformType.SOURCE_NAME.name())))
-				.limit(1)
-				.fetchOneInto(String.class);
-	}
-
 	public List<String> getSourceNames(String nameSearchFilter, int limit) {
 
 		String nameSearchFilterCrit = '%' + StringUtils.lowerCase(nameSearchFilter) + '%';
 		return create
-				.selectDistinct(FREEFORM.VALUE_TEXT)
-				.from(FREEFORM)
-				.where(FREEFORM.TYPE.eq(FreeformType.SOURCE_NAME.name())
-						.and(DSL.lower(FREEFORM.VALUE_TEXT).like(nameSearchFilterCrit)))
-				.orderBy(FREEFORM.VALUE_TEXT)
+				.selectDistinct(SOURCE.NAME)
+				.from(SOURCE)
+				.where(DSL.lower(SOURCE.NAME).like(nameSearchFilterCrit))
+				.orderBy(SOURCE.NAME)
 				.limit(limit)
 				.fetchInto(String.class);
 	}
 
-	public Long createSource(SourceType sourceType, List<SourceProperty> sourceProperties) {
+	public Long createSource(SourceType type, String name, String value, String valuePrese, String comment, boolean isPublic, List<SourceProperty> sourceProperties) {
 
-		Long sourceId = create.insertInto(SOURCE, SOURCE.TYPE)
-				.values(sourceType.name())
+		Long sourceId = create.insertInto(SOURCE, SOURCE.TYPE, SOURCE.NAME, SOURCE.VALUE, SOURCE.VALUE_PRESE, SOURCE.COMMENT, SOURCE.IS_PUBLIC)
+				.values(type.name(), name, value, valuePrese, comment, isPublic)
 				.returning(SOURCE.ID)
 				.fetchOne()
 				.getId();
 
-		for (SourceProperty sourceProperty : sourceProperties) {
-			createSourceProperty(sourceId, sourceProperty.getType(), sourceProperty.getValueText());
+		if (CollectionUtils.isNotEmpty(sourceProperties)) {
+			for (SourceProperty sourceProperty : sourceProperties) {
+				createSourceProperty(sourceId, sourceProperty.getType(), sourceProperty.getValueText());
+			}
 		}
 		return sourceId;
 	}
@@ -386,10 +406,15 @@ public class SourceDbService implements GlobalConstant, ActivityFunct {
 				.execute();
 	}
 
-	public void updateSourceType(Long sourceId, SourceType type) {
+	public void updateSource(Long sourceId, SourceType type, String name, String value, String valuePrese, String comment, boolean isPublic) {
 
 		create.update(SOURCE)
 				.set(SOURCE.TYPE, type.name())
+				.set(SOURCE.NAME, name)
+				.set(SOURCE.VALUE, value)
+				.set(SOURCE.VALUE_PRESE, valuePrese)
+				.set(SOURCE.COMMENT, comment)
+				.set(SOURCE.IS_PUBLIC, isPublic)
 				.where(SOURCE.ID.eq(sourceId))
 				.execute();
 	}
@@ -496,6 +521,23 @@ public class SourceDbService implements GlobalConstant, ActivityFunct {
 						.from(SOURCE_FREEFORM)
 						.where(SOURCE_FREEFORM.SOURCE_ID.eq(sourceId))))
 				.fetch();
+	}
+
+	private List<eki.ekilex.data.Source> getSources(Source s, Condition where) {
+
+		return create
+				.select(
+						s.ID,
+						s.TYPE,
+						s.NAME,
+						s.VALUE,
+						s.VALUE_PRESE,
+						s.COMMENT,
+						s.IS_PUBLIC)
+				.from(s)
+				.where(where)
+				.orderBy(s.ID)
+				.fetchInto(eki.ekilex.data.Source.class);
 	}
 
 }

@@ -10,7 +10,7 @@
                  class="main-search-input form-control search-phrase js-kioskboard-input" 
                  th:classappend="${pageContext == 'search' ? 'compact' : ''}"
                  th:placeholder="#{search.placeholder}" role="search"
-                 autocapitalize="off" autocorrect="off"
+                 autocapitalize="off" autocomplete="off"
                  data-kioskboard-type="keyboard" data-kioskboard-placement="bottom" data-kioskboard-specialcharacters="true" />
           <input type="hidden" name="destinLangsStr" th:value="${destinLangsStr}" />
           <input type="hidden" name="datasetCodesStr" th:value="${datasetCodesStr}" />
@@ -71,7 +71,7 @@
         </button>
         <div class="dropdown-menu px-3" aria-labelledby="destinLangMenuButton">
           <th:block th:each="filterElem : ${langFilter}">
-            <a href="#" th:id="${'destin-lang-' + filterElem.code}" class="dropdown-item px-2 py-1 dropdown-item-multiselect"
+            <a href="#" th:id="|destin-lang-${filterElem.code}|" class="dropdown-item px-2 py-1 dropdown-item-multiselect"
                th:data-filter-code="${filterElem.code}" 
                th:text="${filterElem.value}" 
                th:classappend="${filterElem.selected ? 'active' : ''}">Keel</a>

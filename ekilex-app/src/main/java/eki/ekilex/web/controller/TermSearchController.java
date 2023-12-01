@@ -83,7 +83,7 @@ public class TermSearchController extends AbstractPrivateSearchController {
 			Model model) throws Exception {
 
 		if (CollectionUtils.isEmpty(selectedDatasets)) {
-			return "redirect:" + TERM_SEARCH_URI;
+			return REDIRECT_PREF + TERM_SEARCH_URI;
 		}
 
 		simpleSearchFilter = valueUtil.trimAndCleanAndRemoveHtmlAndLimit(simpleSearchFilter);
@@ -97,7 +97,7 @@ public class TermSearchController extends AbstractPrivateSearchController {
 		userProfileService.updateUserPreferredDatasets(selectedDatasets, userId);
 
 		String searchUri = searchHelper.composeSearchUri(searchMode, selectedDatasets, simpleSearchFilter, detailSearchFilter, resultMode, resultLang);
-		return "redirect:" + TERM_SEARCH_URI + searchUri;
+		return REDIRECT_PREF + TERM_SEARCH_URI + searchUri;
 	}
 
 	@GetMapping(TERM_SEARCH_URI + "/**")
@@ -134,12 +134,15 @@ public class TermSearchController extends AbstractPrivateSearchController {
 		Long userId = userContext.getUserId();
 		userProfileService.updateUserPreferredDatasets(selectedDatasets, userId);
 
+		Integer pageNum = getPageNum(request);
+		int offset = calculateOffset(pageNum);
+
 		TermSearchResult termSearchResult;
 		if (StringUtils.equals(SEARCH_MODE_DETAIL, searchMode)) {
 			searchHelper.addValidationMessages(detailSearchFilter);
-			termSearchResult = termSearchService.getTermSearchResult(detailSearchFilter, selectedDatasets, resultMode, resultLang, DEFAULT_OFFSET, noLimit);
+			termSearchResult = termSearchService.getTermSearchResult(detailSearchFilter, selectedDatasets, resultMode, resultLang, offset, noLimit);
 		} else {
-			termSearchResult = termSearchService.getTermSearchResult(simpleSearchFilter, selectedDatasets, resultMode, resultLang, DEFAULT_OFFSET, noLimit);
+			termSearchResult = termSearchService.getTermSearchResult(simpleSearchFilter, selectedDatasets, resultMode, resultLang, offset, noLimit);
 		}
 		boolean noResults = termSearchResult.getResultCount() == 0;
 		model.addAttribute("searchMode", searchMode);
@@ -204,7 +207,6 @@ public class TermSearchController extends AbstractPrivateSearchController {
 			termSearchResult = termSearchService.getTermSearchResult(simpleSearchFilter, selectedDatasets, resultMode, resultLang, offset, noLimit);
 		}
 
-		termSearchResult.setOffset(offset);
 		model.addAttribute("termSearchResult", termSearchResult);
 		model.addAttribute("searchUri", searchUri);
 

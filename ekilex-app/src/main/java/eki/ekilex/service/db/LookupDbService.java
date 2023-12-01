@@ -484,7 +484,7 @@ public class LookupDbService extends AbstractDataDbService {
 
 	public List<eki.ekilex.data.Meaning> getMeanings(String searchFilter, SearchDatasetsRestriction searchDatasetsRestriction, Long excludedMeaningId) {
 
-		String maskedSearchFilter = searchFilter.replace(QUERY_MULTIPLE_CHARACTERS_SYM, "%").replace(QUERY_SINGLE_CHARACTER_SYM, "_");
+		String maskedSearchFilter = searchFilter.replace(SEARCH_MASK_CHARS, "%").replace(SEARCH_MASK_CHAR, "_");
 		Field<String> filterField = DSL.lower(maskedSearchFilter);
 		List<String> userPermDatasetCodes = searchDatasetsRestriction.getUserPermDatasetCodes();
 
@@ -718,24 +718,26 @@ public class LookupDbService extends AbstractDataDbService {
 				.fetchSingleInto(Boolean.class);
 	}
 
-	public boolean meaningPublicLexemeExists(Long meaningId) {
+	public boolean meaningPublicLexemeExists(Long meaningId, String datasetCode) {
 
 		return create
 				.select(DSL.field(DSL.count(LEXEME.ID).gt(0)).as("public_lexeme_exists"))
 				.from(LEXEME)
 				.where(
 						LEXEME.MEANING_ID.eq(meaningId)
+								.and(LEXEME.DATASET_CODE.eq(datasetCode))
 								.and(LEXEME.IS_PUBLIC.eq(PUBLICITY_PUBLIC)))
 				.fetchSingleInto(Boolean.class);
 	}
 
-	public boolean wordPublicLexemeExists(Long wordId) {
+	public boolean wordPublicLexemeExists(Long wordId, String datasetCode) {
 
 		return create
 				.select(DSL.field(DSL.count(LEXEME.ID).gt(0)).as("public_lexeme_exists"))
 				.from(LEXEME)
 				.where(
 						LEXEME.WORD_ID.eq(wordId)
+								.and(LEXEME.DATASET_CODE.eq(datasetCode))
 								.and(LEXEME.IS_PUBLIC.eq(PUBLICITY_PUBLIC)))
 				.fetchSingleInto(Boolean.class);
 	}

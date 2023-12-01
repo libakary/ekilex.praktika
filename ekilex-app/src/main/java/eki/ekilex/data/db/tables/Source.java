@@ -16,7 +16,7 @@ import org.jooq.ForeignKey;
 import org.jooq.Identity;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row2;
+import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -57,6 +57,31 @@ public class Source extends TableImpl<SourceRecord> {
      * The column <code>public.source.type</code>.
      */
     public final TableField<SourceRecord, String> TYPE = createField(DSL.name("type"), SQLDataType.VARCHAR(100).nullable(false), this, "");
+
+    /**
+     * The column <code>public.source.name</code>.
+     */
+    public final TableField<SourceRecord, String> NAME = createField(DSL.name("name"), SQLDataType.CLOB, this, "");
+
+    /**
+     * The column <code>public.source.value</code>.
+     */
+    public final TableField<SourceRecord, String> VALUE = createField(DSL.name("value"), SQLDataType.CLOB, this, "");
+
+    /**
+     * The column <code>public.source.comment</code>.
+     */
+    public final TableField<SourceRecord, String> COMMENT = createField(DSL.name("comment"), SQLDataType.CLOB, this, "");
+
+    /**
+     * The column <code>public.source.is_public</code>.
+     */
+    public final TableField<SourceRecord, Boolean> IS_PUBLIC = createField(DSL.name("is_public"), SQLDataType.BOOLEAN.nullable(false).defaultValue(DSL.field("true", SQLDataType.BOOLEAN)), this, "");
+
+    /**
+     * The column <code>public.source.value_prese</code>.
+     */
+    public final TableField<SourceRecord, String> VALUE_PRESE = createField(DSL.name("value_prese"), SQLDataType.CLOB, this, "");
 
     private Source(Name alias, Table<SourceRecord> aliased) {
         this(alias, aliased, null);
@@ -138,11 +163,11 @@ public class Source extends TableImpl<SourceRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row2 type methods
+    // Row7 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<Long, String> fieldsRow() {
-        return (Row2) super.fieldsRow();
+    public Row7<Long, String, String, String, String, Boolean, String> fieldsRow() {
+        return (Row7) super.fieldsRow();
     }
 }

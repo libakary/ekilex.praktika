@@ -30,6 +30,7 @@
           </label>
         </div>
         <th:block th:if="${termSearchResult != null}">
+          <input type="hidden" id="pageNum" th:value="${termSearchResult.currentPage}">
           <div class="btn-group btn-tabs">
             <th:block th:if="${termSearchResult.resultDownloadNow}">
               <div>
@@ -55,6 +56,18 @@
                 <span>|</span>
                 <input type="hidden" name="searchUri" th:value="${searchUri}">
                 <button type="button" data-plugin="tableViewTermSearchResults" class="btn btn-secondary" th:data-result-count="${termSearchResult.meaningCount}" th:text="#{term.meaning.table.title}">Tabelivaade</button>
+              </form>
+            </div>
+            <div>
+              <form th:action="@{/term_paging}" method="post">
+                <span>|</span>
+                <input type="hidden" name="searchUri" th:value="${searchUri}">
+                <input type="hidden" name="pageNum" th:value="${termSearchResult.currentPage}">
+                <input type="hidden" name="direction" value="page">
+                <input type="hidden" name="offset" value="0">
+                <button type="button" data-plugin="refreshSearchResults" class="btn btn-secondary" data-toggle="tooltip" th:title="#{common.refresh.search}">
+                  <i class="fa fa-refresh" aria-hidden="true"></i>
+                </button>
               </form>
             </div>
           </div>
@@ -95,7 +108,6 @@
         <div class="d-inline-block">
           <form th:action="@{/termcreateword}" method="post">
             <input type="hidden" name="backUri">
-            <input type="hidden" name="uriParams">
             <input type="hidden" name="meaningId" th:value="${meaningId}">
             <button type="button" class="btn btn-secondary mr-1" data-plugin="initCreateWordPlugin" sec:authorize="#vars.meaning.crudGrant">
               <span th:text="#{term.add.term}">Lisa termin</span>
@@ -1444,18 +1456,6 @@
           <span th:utext="${usage.value}"></span>
           <span th:if="${usage.typeValue != null}" th:text="'(' + ${usage.typeValue + ')'}"></span>
           <div class="d-inline-block ctxt" th:text="'(' + #{'boolean.public.' + ${usage.public}} + ')'" th:if="${usage.crudGrant}"></div>
-          <span th:if="${not #lists.isEmpty(usage.authors)}">
-            (
-            <span th:each="sourceLink,sourceLinkIter : ${usage.authors}">
-              <span th:text="#{'enum.reference.type.' + ${sourceLink.type}} + ': '"></span>
-              <a th:href="@{'/ff_source_link:' + ${sourceLink.id}}" th:text="${sourceLink.value}" th:if="${sourceLink.value != null}"></a>
-              <span th:if="${sourceLink.name != null}">
-                <span th:text="${sourceLink.name}"></span>
-              </span>
-              <span th:unless="${sourceLinkIter.last}">, </span>
-            </span>
-            )
-          </span>
           <span class="show-on-mouseover" th:if="${#lists.isEmpty(usage.sourceLinks)}">
             [
             <button type="button" class="btn badge badge-secondary"
@@ -1756,9 +1756,9 @@
       <div th:if="${#lists.isEmpty(lexeme.word.forums)}" th:text="#{common.no.content}">
         Sisu puudub...
       </div>
-      <div th:each="forum : ${lexeme.word.forums}">
+      <div th:each="forum,forumIter : ${lexeme.word.forums}">
         <div th:replace="termdialog :: edit_word_forum_dlg"></div>
-        <div class="col hidden-buttons pr-5">
+        <div class="col hidden-buttons pr-5" th:classappend="${forumIter.last ? '' : 'mb-3'}">
           <div class="action-buttons-anchor">
             <span th:utext="${forum.valuePrese}"></span>
             <span class="ctxt" th:text="'[' + ${forum.modifiedBy} + ']'" th:if="${forum.modifiedBy != null}"></span>
@@ -1801,9 +1801,9 @@
       <div th:if="${#lists.isEmpty(meaning.forums)}" th:text="#{common.no.content}">
         Sisu puudub...
       </div>
-      <div th:each="forum : ${meaning.forums}">
+      <div th:each="forum,forumIter : ${meaning.forums}">
         <div th:replace="termdialog :: edit_meaning_forum_dlg"></div>
-        <div class="col hidden-buttons pr-5">
+        <div class="col hidden-buttons pr-5" th:classappend="${forumIter.last ? '' : 'mb-3'}">
           <div class="action-buttons-anchor">
             <span th:utext="${forum.valuePrese}"></span>
             <span class="ctxt" th:text="'[' + ${forum.modifiedBy} + ']'" th:if="${forum.modifiedBy != null}"></span>

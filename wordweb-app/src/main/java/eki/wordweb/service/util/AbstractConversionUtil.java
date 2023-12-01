@@ -36,17 +36,20 @@ public abstract class AbstractConversionUtil implements WebConstant, SystemConst
 		boolean isSuffixoid = false;
 		boolean isAbbreviationWord = false;
 		boolean isForeignWord = false;
+		boolean isIncorrectWordForm = false;
 		List<String> wordTypeCodes = wordTypeData.getWordTypeCodes();
 		if (CollectionUtils.isNotEmpty(wordTypeCodes)) {
 			isPrefixoid = wordTypeCodes.contains(WORD_TYPE_CODE_PREFIXOID);
 			isSuffixoid = wordTypeCodes.contains(WORD_TYPE_CODE_SUFFIXOID);
 			isAbbreviationWord = CollectionUtils.containsAny(wordTypeCodes, Arrays.asList(WORD_TYPE_CODES_ABBREVIATION));
 			isForeignWord = CollectionUtils.containsAny(wordTypeCodes, Arrays.asList(WORD_TYPE_CODES_FOREIGN));
+			isIncorrectWordForm = wordTypeCodes.contains(WORD_TYPE_CODE_INCORRECT_WORD_FORM);
 		}
 		wordTypeData.setPrefixoid(isPrefixoid);
 		wordTypeData.setSuffixoid(isSuffixoid);
 		wordTypeData.setAbbreviationWord(isAbbreviationWord);
 		wordTypeData.setForeignWord(isForeignWord);
+		wordTypeData.setIncorrectWordForm(isIncorrectWordForm);
 
 		if (wordTypeData instanceof Word) {
 			Word word = (Word) wordTypeData;
@@ -82,7 +85,9 @@ public abstract class AbstractConversionUtil implements WebConstant, SystemConst
 		if (lexComplexity == null) {
 			return list;
 		}
-		return list.stream().filter(elem -> isComplexityMatch(elem.getComplexity(), lexComplexity)).collect(Collectors.toList());
+		return list.stream()
+				.filter(elem -> isComplexityMatch(elem.getComplexity(), lexComplexity))
+				.collect(Collectors.toList());
 	}
 
 	protected boolean isComplexityMatch(Complexity dataComplexity, Complexity lexComplexity) {
@@ -102,7 +107,9 @@ public abstract class AbstractConversionUtil implements WebConstant, SystemConst
 		if (CollectionUtils.isEmpty(destinLangs)) {
 			return list;
 		}
-		return list.stream().filter(elem -> isLangFilterMatch(wordLang, elem.getLang(), destinLangs)).collect(Collectors.toList());
+		return list.stream()
+				.filter(elem -> isLangFilterMatch(wordLang, elem.getLang(), destinLangs))
+				.collect(Collectors.toList());
 	}
 
 	protected boolean isLangFilterMatch(String wordLang, String dataLang, List<String> destinLangs) {
@@ -110,6 +117,10 @@ public abstract class AbstractConversionUtil implements WebConstant, SystemConst
 			return true;
 		}
 		if (destinLangs.contains(DESTIN_LANG_ALL)) {
+			return true;
+		}
+		// forced estonian content
+		if (StringUtils.equals(DESTIN_LANG_EST, dataLang)) {
 			return true;
 		}
 		if (StringUtils.equals(wordLang, dataLang)) {
